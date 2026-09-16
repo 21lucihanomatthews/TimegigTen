@@ -29,9 +29,9 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
   };
 
   return (
-    <div className="min-h-[calc(100vh-4.5rem)] bg-slate-100 text-slate-900 pb-28 pt-2 px-3 max-w-xl mx-auto overflow-y-auto">
+    <div className="min-h-[calc(100vh-4.5rem)] bg-transparent text-slate-900 pb-28 pt-2 px-3 max-w-xl mx-auto overflow-y-auto">
       {/* Sticky Header & Search Bar (always visible) */}
-      <div className="sticky top-0 z-30 bg-slate-100/95 backdrop-blur-md pt-3 pb-3 space-y-2">
+      <div className="sticky top-0 z-30 bg-transparent/95 backdrop-blur-md pt-3 pb-3 space-y-2">
         <div className="flex items-center justify-between">
           <div>
             <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold mb-0.5">
@@ -77,7 +77,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
               key={seeker.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs hover:shadow-sm transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+              className="bg-white text-slate-900 border border-slate-200 rounded-2xl p-3.5 shadow-xs hover:shadow-sm transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             >
               <div className="flex items-start sm:items-center gap-3">
                 {/* Profile Picture Logo Bubble - Clicking directs to profile feature */}
@@ -109,7 +109,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
                   {/* Skills tags */}
                   <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                     {seeker.skills.slice(0, 3).map((skill, i) => (
-                      <span key={i} className="text-[9px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-medium">
+                      <span key={i} className="text-[9px] bg-transparent text-slate-700 px-1.5 py-0.5 rounded font-medium">
                         {skill}
                       </span>
                     ))}
@@ -126,7 +126,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => setSelectedSeeker(seeker)}
-                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition-colors"
+                    className="px-2.5 py-1.5 bg-transparent hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition-colors"
                   >
                     View
                   </button>
@@ -169,11 +169,11 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 30 }}
-              className="bg-white border border-slate-200 w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[85vh] overflow-y-auto shadow-xl p-5 relative text-slate-900"
+              className="bg-white text-slate-900 border border-slate-200 w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[85vh] overflow-y-auto shadow-xl p-5 relative text-slate-900"
             >
               <button
                 onClick={() => setSelectedSeeker(null)}
-                className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors"
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors"
                 aria-label="Close details"
               >
                 <X className="w-4 h-4" />

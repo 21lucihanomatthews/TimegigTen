@@ -5,12 +5,26 @@ import { GiGsView } from './components/GiGsView';
 import { SeekersView } from './components/SeekersView';
 import { ProfileView } from './components/ProfileView';
 import { SettingsView } from './components/SettingsView';
+import { AuthView } from './components/AuthView';
 import { TopHeader } from './components/TopHeader';
 import { BottomNavBar } from './components/BottomNavBar';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Users, Settings, UserCircle, Star } from 'lucide-react';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem('timegig_auth_token');
+  });
+
+  const [showSplash, setShowSplash] = useState(true);
+  const appName = localStorage.getItem('tenant_app_name') || 'TimeGiG';
+  const appLogo = localStorage.getItem('tenant_app_logo');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('timegig_welcome_shown'));
   const [showTenantPopup, setShowTenantPopup] = useState(false);
   const [currentTab, setCurrentTab] = useState<NavTab>(() => {
@@ -124,9 +138,48 @@ export default function App() {
     setShowTenantPopup(false);
   };
 
+  if (showSplash) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          key="splash"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center"
+        >
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex flex-col items-center"
+          >
+            {appLogo ? (
+              <img src={appLogo} alt={appName} className="w-24 h-24 rounded-3xl object-cover shadow-2xl mb-6 border border-slate-700" />
+            ) : (
+              <div className="w-24 h-24 bg-white text-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-6 font-black text-4xl shadow-2xl">
+                {appName.substring(0, 2).toUpperCase()}
+              </div>
+            )}
+            <h1 className="text-3xl font-bold text-white tracking-tight">{appName}</h1>
+            <div className="mt-8 flex gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </motion.div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthView onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-900 selection:bg-indigo-500 selection:text-white pb-16 relative">
-      <TopHeader currentTab={currentTab} onSelectTab={handleSelectTab} onToggleSettings={handleToggleSettings} profilePhoto={profile.facePhotoUrl} />
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500 selection:text-white pb-16 relative">
+      <TopHeader appName={appName} currentTab={currentTab} onSelectTab={handleSelectTab} onToggleSettings={handleToggleSettings} profilePhoto={profile.facePhotoUrl} />
 
       <main className="max-w-xl mx-auto">
         {currentTab === 'gigs' && (
@@ -144,7 +197,7 @@ export default function App() {
           <ProfileView profile={profile} onUpdateProfile={setProfile} />
         )}
         {currentTab === 'settings' && (
-          <SettingsView />
+          <SettingsView profile={profile} />
         )}
       </main>
 
@@ -152,6 +205,7 @@ export default function App() {
         currentTab={currentTab}
         onSelectTab={handleSelectTab}
         profilePhoto={profile.facePhotoUrl}
+        isTenantApproved={profile.isTenantApproved}
       />
 
       <AnimatePresence>

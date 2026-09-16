@@ -31,6 +31,7 @@ export interface UserProfile {
   facePhotoUrl?: string;
   idDocumentName?: string;
   accountType?: 'User' | 'Tenant';
+  isTenantApproved?: boolean;
 }
 
 export interface Seeker {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, DollarSign, Calendar, X, CheckCircle2, Bookmark, Sparkles, Layers, Search, ZoomIn, ZoomOut, Navigation, Loader2, List } from 'lucide-react';
+import { MapPin, DollarSign, Calendar, X, CheckCircle2, Bookmark, Sparkles, Layers, Search, ZoomIn, ZoomOut, Navigation, Loader2, List, Orbit } from 'lucide-react';
 import { Gig } from '../types';
 import L from 'leaflet';
 import { motion, AnimatePresence } from 'motion/react';
@@ -73,6 +73,8 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGig, setSelectedGig] = useState<Gig | null>(null);
   const [applicationState, setApplicationState] = useState<'idle' | 'waiting' | 'accepted'>('idle');
+  const [isOrbiting, setIsOrbiting] = useState(false);
+  const orbitRef = useRef<number>();
 
   const filteredGigs = gigs.filter(gig =>
     gig.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -208,6 +210,30 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
     };
   }, [searchQuery, filteredGigs]);
 
+  useEffect(() => {
+    if (!isOrbiting || !mapInstanceRef.current) {
+      if (orbitRef.current) cancelAnimationFrame(orbitRef.current);
+      return;
+    }
+    const map = mapInstanceRef.current;
+    let angle = 0;
+    const speed = 0.8; // pixels per frame
+
+    const orbitStep = () => {
+      angle += 0.01;
+      const x = Math.cos(angle) * speed;
+      const y = Math.sin(angle) * speed;
+      map.panBy([x, y], { animate: false });
+      orbitRef.current = requestAnimationFrame(orbitStep);
+    };
+    
+    orbitRef.current = requestAnimationFrame(orbitStep);
+    
+    return () => {
+      if (orbitRef.current) cancelAnimationFrame(orbitRef.current);
+    };
+  }, [isOrbiting]);
+
   const handleZoomIn = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.zoomIn();
@@ -234,7 +260,7 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8.5rem)] bg-slate-100 relative overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] bg-transparent relative overflow-hidden">
       {/* Search Bar & All Gigs button placed directly under the top bar */}
       <div className="sticky top-0 z-[350] bg-white/95 backdrop-blur-md px-3 py-2 border-b border-slate-200 flex items-center gap-2 shadow-xs">
         <div className="relative flex-1">
@@ -271,7 +297,7 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
         <div className="relative">
           <button
             onClick={() => setShowStyleMenu(!showStyleMenu)}
-            className="bg-slate-50 hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-xl border border-slate-200 shadow-xs text-xs font-medium flex items-center gap-1.5 transition-all"
+            className="bg-slate-50 hover:bg-transparent text-slate-700 px-3 py-2 rounded-xl border border-slate-200 shadow-xs text-xs font-medium flex items-center gap-1.5 transition-all"
             aria-label="Change map style"
           >
             <Layers className="w-3.5 h-3.5 text-red-600" />
@@ -306,24 +332,39 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
       {/* Real Leaflet Map Filling Remaining Screen */}
       <div ref={mapRef} className="w-full flex-1 z-10" />
 
-      {/* Zoom Feature in the center */}
-      <div className="absolute bottom-6 right-4 sm:right-6 z-[400] flex flex-col gap-1 bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200 shadow-lg pointer-events-auto">
+      {/* Zoom & Orbit Features in the center right */}
+      <div className="absolute bottom-6 right-4 sm:right-6 z-[400] flex flex-col gap-2 pointer-events-auto">
+        <div className="flex flex-col bg-white/90 backdrop-blur-md p-1 rounded-xl border border-slate-200 shadow-lg">
+          <button
+            onClick={handleZoomIn}
+            className="p-2 rounded-lg hover:bg-transparent text-slate-700 transition-colors"
+            aria-label="Zoom in"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <div className="w-full h-px bg-slate-200"></div>
+          <button
+            onClick={handleZoomOut}
+            className="p-2 rounded-lg hover:bg-transparent text-slate-700 transition-colors"
+            aria-label="Zoom out"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+        </div>
+
         <button
-          onClick={handleZoomIn}
-          className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"
-          aria-label="Zoom in"
-          title="Zoom In"
+          onClick={() => setIsOrbiting(!isOrbiting)}
+          className={`p-2 rounded-xl border shadow-lg transition-all flex items-center justify-center ${
+            isOrbiting 
+              ? 'bg-black border-black text-white' 
+              : 'bg-white/90 backdrop-blur-md border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+          aria-label="Toggle Orbit"
+          title="Toggle Orbit Mode"
         >
-          <ZoomIn className="w-3.5 h-3.5" />
-        </button>
-        <div className="w-full h-px bg-slate-200"></div>
-        <button
-          onClick={handleZoomOut}
-          className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"
-          aria-label="Zoom out"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-3.5 h-3.5" />
+          <Orbit className={`w-5 h-5 ${isOrbiting ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
         </button>
       </div>
 
@@ -337,7 +378,7 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-md flex flex-col justify-end sm:items-center sm:justify-center p-0 sm:p-6"
           >
-            <div className="bg-white w-full max-w-2xl h-[90vh] sm:h-[85vh] rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="bg-white text-slate-900 w-full max-w-2xl h-[90vh] sm:h-[85vh] rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden">
               {/* Modal Header */}
               <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center gap-2">
@@ -351,7 +392,7 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
                 </div>
                 <button
                   onClick={() => setShowAllGigsModal(false)}
-                  className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl bg-transparent text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
                   aria-label="Close All Gigs"
                 >
                   <X className="w-4 h-4" />
@@ -363,7 +404,7 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
                 {gigs.map((gig) => (
                   <div
                     key={gig.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    className="bg-white text-slate-900 border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-black to-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
@@ -415,11 +456,11 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 30 }}
-              className="bg-white border border-slate-200 w-full max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[85vh] overflow-y-auto shadow-2xl p-5 relative text-slate-900"
+              className="bg-white text-slate-900 border border-slate-200 w-full max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[85vh] overflow-y-auto shadow-2xl p-5 relative text-slate-900"
             >
               <button
                 onClick={() => setSelectedGig(null)}
-                className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors"
+                className="absolute top-4 right-4 p-1.5 rounded-full bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors"
                 aria-label="Close details"
               >
                 <X className="w-4 h-4" />
