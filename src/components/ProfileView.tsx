@@ -25,8 +25,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
   const [newUrl, setNewUrl] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
+  const isLocked = profile.isTenantApproved;
+
   const handleAddSocial = () => {
-    if (!newUrl.trim()) return;
+    if (!newUrl.trim() || isLocked) return;
     setFormData({
       ...formData,
       socialLinks: [...formData.socialLinks, { platform: newPlatform, url: newUrl }]
@@ -35,6 +37,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
   };
 
   const handleRemoveSocial = (index: number) => {
+    if (isLocked) return;
     setFormData({
       ...formData,
       socialLinks: formData.socialLinks.filter((_, i) => i !== index)
@@ -42,6 +45,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
   };
 
   const handleFacePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLocked) return;
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -53,6 +57,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
   };
 
   const handleIdDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLocked) return;
     const file = e.target.files?.[0];
     if (file) {
       setFormData(prev => ({ ...prev, idDocumentName: file.name }));
@@ -61,6 +66,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocked) return;
     const isTenantApproved = formData.accountType === 'Tenant';
     onUpdateProfile({ ...formData, isTenantApproved });
     setSubmitted(true);
@@ -69,15 +75,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
 
   return (
     <div className="min-h-[calc(100vh-4.5rem)] bg-transparent text-slate-900 pb-28 pt-4 px-3 max-w-lg mx-auto overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
             <span>Profile Settings</span>
-            <span className="text-[10px] bg-red-50 text-red-700 font-semibold px-2 py-0.2 rounded-full border border-red-200">
-              Verified
+            <span className={`text-[10px] font-semibold px-2 py-0.2 rounded-full border ${isLocked ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+              {isLocked ? 'Approved & Locked' : 'Verified'}
             </span>
           </h1>
-          <p className="text-[11px] text-slate-500 mt-0.5">Manage your credentials, photo, and identity documents</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            {isLocked ? 'Your profile is locked because you are an approved tenant.' : 'Manage your credentials, photo, and identity documents'}
+          </p>
         </div>
       </div>
 
@@ -91,7 +99,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
             <div className="relative group shrink-0">
               <div className="w-16 h-16 rounded-xl bg-transparent border-2 border-slate-200 overflow-hidden flex items-center justify-center shadow-xs">
                 {formData.facePhotoUrl ? (
-                  <img src={formData.facePhotoUrl} alt="Face photo" className="w-full h-full object-cover" />
+                  <img src={formData.facePhotoUrl} alt="Face photo" className={`w-full h-full object-cover ${isLocked ? 'opacity-80' : ''}`} />
                 ) : (
                   <User className="w-7 h-7 text-slate-400" />
                 )}
@@ -101,16 +109,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
                   <CheckCircle2 className="w-3.5 h-3.5" />
                 </div>
               )}
-              <label className="absolute -bottom-1 -right-1 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg cursor-pointer shadow-xs transition-transform hover:scale-105" title="Upload face only picture">
-                <Camera className="w-3 h-3" />
-                <input type="file" accept="image/*" onChange={handleFacePhotoUpload} className="hidden" />
-              </label>
+              {!isLocked && (
+                <label className="absolute -bottom-1 -right-1 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg cursor-pointer shadow-xs transition-transform hover:scale-105" title="Upload face only picture">
+                  <Camera className="w-3 h-3" />
+                  <input type="file" accept="image/*" onChange={handleFacePhotoUpload} className="hidden" />
+                </label>
+              )}
             </div>
 
             <div className="flex-1">
               <h4 className="text-xs font-bold text-slate-900">Face-Only Profile Picture</h4>
               <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                Clear front-facing face photo for venue badge and check-in.
+                {isLocked ? 'Profile picture is verified and locked.' : 'Clear front-facing face photo for venue badge and check-in.'}
               </p>
               {formData.facePhotoUrl && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold mt-1">
@@ -124,10 +134,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
           <div className="pt-3 border-t border-slate-100">
             <label className="block text-[11px] font-semibold text-slate-700 mb-1.5">Government ID Document (ID / Passport)</label>
             <div className="flex items-center gap-2">
-              <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-transparent border border-slate-200 rounded-xl cursor-pointer text-[11px] font-medium text-slate-700 transition-all truncate">
-                <FileText className="w-3.5 h-3.5 text-red-600 shrink-0" />
+              <label className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-[11px] font-medium transition-all truncate ${isLocked ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-50 hover:bg-transparent cursor-pointer text-slate-700'}`}>
+                <FileText className={`w-3.5 h-3.5 shrink-0 ${isLocked ? 'text-slate-300' : 'text-red-600'}`} />
                 <span className="truncate">{formData.idDocumentName ? formData.idDocumentName : 'Choose ID Document from device...'}</span>
-                <input type="file" accept=".pdf,image/*" onChange={handleIdDocUpload} className="hidden" />
+                {!isLocked && <input type="file" accept=".pdf,image/*" onChange={handleIdDocUpload} className="hidden" />}
               </label>
               {formData.idDocumentName && (
                 <span className="text-emerald-600 text-[11px] font-semibold flex items-center gap-0.5 shrink-0">
@@ -146,9 +156,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
             <label className="block text-[11px] font-medium text-slate-700 mb-0.5">Account Type *</label>
             <select
               required
+              disabled={isLocked}
               value={formData.accountType || 'User'}
               onChange={e => setFormData({ ...formData, accountType: e.target.value as 'User' | 'Tenant' })}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 font-semibold"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 font-semibold disabled:bg-slate-100 disabled:text-slate-400"
             >
               <option value="User">Regular User</option>
               <option value="Tenant">Tenant (Earn Passive Income)</option>
@@ -161,18 +172,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
               <input
                 type="text"
                 required
+                disabled={isLocked}
                 value={formData.firstName}
                 onChange={e => setFormData({ ...formData, firstName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-700 mb-0.5">Middle Name (Opt.)</label>
               <input
                 type="text"
+                disabled={isLocked}
                 value={formData.middleName || ''}
                 onChange={e => setFormData({ ...formData, middleName: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
             <div>
@@ -180,9 +193,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
               <input
                 type="text"
                 required
+                disabled={isLocked}
                 value={formData.surname}
                 onChange={e => setFormData({ ...formData, surname: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
           </div>
@@ -193,9 +207,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
               <input
                 type="date"
                 required
+                disabled={isLocked}
                 value={formData.dob}
                 onChange={e => setFormData({ ...formData, dob: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
             <div>
@@ -203,10 +218,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
               <input
                 type="tel"
                 required
+                disabled={isLocked}
                 value={formData.contactNumber}
                 onChange={e => setFormData({ ...formData, contactNumber: e.target.value })}
                 placeholder="+27 82 123 4567"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
           </div>
@@ -221,10 +237,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
             <input
               type="text"
               required
+              disabled={isLocked}
               value={formData.address}
               onChange={e => setFormData({ ...formData, address: e.target.value })}
               placeholder="e.g. 42 Juta Street, Braamfontein"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
             />
           </div>
 
@@ -234,18 +251,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
               <input
                 type="text"
                 required
+                disabled={isLocked}
                 value={formData.city}
                 onChange={e => setFormData({ ...formData, city: e.target.value })}
                 placeholder="e.g. Johannesburg"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
               />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-700 mb-0.5">Province *</label>
               <select
+                disabled={isLocked}
                 value={formData.province}
                 onChange={e => setFormData({ ...formData, province: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
               >
                 {PROVINCES.map(prov => (
                   <option key={prov} value={prov}>{prov}</option>
@@ -269,8 +288,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
                 <button
                   type="button"
                   onClick={() => handleRemoveSocial(idx)}
-                  className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                  className={`transition-colors p-1 ${isLocked ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-rose-600'}`}
                   aria-label="Remove link"
+                  disabled={isLocked}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -280,9 +300,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
 
           <div className="flex flex-col sm:flex-row gap-2 pt-1">
             <select
+              disabled={isLocked}
               value={newPlatform}
               onChange={e => setNewPlatform(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-800 focus:outline-none"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-800 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
             >
               <option value="LinkedIn">LinkedIn</option>
               <option value="GitHub">GitHub</option>
@@ -293,15 +314,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
             </select>
             <input
               type="url"
+              disabled={isLocked}
               value={newUrl}
               onChange={e => setNewUrl(e.target.value)}
               placeholder="https://..."
-              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:bg-slate-100 disabled:text-slate-400"
             />
             <button
               type="button"
+              disabled={isLocked}
               onClick={handleAddSocial}
-              className="px-3 py-2 bg-black hover:bg-slate-800 text-white rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors shadow-xs shrink-0"
+              className="px-3 py-2 bg-black hover:bg-slate-800 disabled:bg-slate-300 text-white rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors shadow-xs shrink-0"
             >
               <Plus className="w-3.5 h-3.5" /> Add
             </button>
@@ -309,12 +332,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
         </div>
 
         {/* Submit Button */}
-        <button
-          type="submit"
-          className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
-        >
-          <Save className="w-3.5 h-3.5" /> Save & Submit Profile
-        </button>
+        {!isLocked && (
+          <button
+            type="submit"
+            className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+          >
+            <Save className="w-3.5 h-3.5" /> Save & Submit Profile
+          </button>
+        )}
 
         {submitted && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-center text-[11px] font-semibold flex items-center justify-center gap-1.5">
