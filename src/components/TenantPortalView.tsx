@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface TenantPortalViewProps {
@@ -15,6 +15,15 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
   const [appName, setAppName] = useState(() => localStorage.getItem('tenant_app_name') || 'TimeGiG');
   const [appLogo, setAppLogo] = useState<string | null>(() => localStorage.getItem('tenant_app_logo') || null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const customDomain = `https://${appName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'app'}.tg.com`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(customDomain);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
   // Mock Active Verified Users
   const activeUsers = [
@@ -125,9 +134,30 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
 
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-900 mb-2">Welcome to your Portal!</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">
                   Your tenant subscription of R299,99/month is active. Use this dashboard to manage your own application, track user earnings, set your subscription fees, and customize your app's branding.
                 </p>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <h4 className="text-xs font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                    <Share2 className="w-3.5 h-3.5 text-indigo-500" />
+                    Your App Link
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 truncate overflow-hidden">
+                      {customDomain}
+                    </div>
+                    <button 
+                      onClick={handleCopyLink}
+                      className="p-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg transition-colors flex items-center justify-center min-w-[36px]"
+                    >
+                      {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-2">
+                    Share this link to direct users to your branded experience.
+                  </p>
+                </div>
               </div>
             </div>
           )}
