@@ -279,7 +279,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
           <h3 className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Social Media & Portfolio Links</h3>
 
           <div className="space-y-2">
-            {formData.socialLinks.map((link, idx) => (
+            {(formData.socialLinks || []).map((link, idx) => (
               <div key={idx} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-[11px]">
                 <div className="flex items-center gap-1.5 truncate">
                   <span className="font-semibold text-red-600">{link.platform}:</span>

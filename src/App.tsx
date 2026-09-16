@@ -77,7 +77,12 @@ export default function App() {
     const userDocPath = `users/${auth.currentUser.uid}`;
     const unsubscribeProfile = onSnapshot(doc(db, userDocPath), (snapshot) => {
       if (snapshot.exists()) {
-        setProfile(snapshot.data() as UserProfile);
+        const data = snapshot.data();
+        setProfile(prev => ({
+          ...prev,
+          ...data,
+          socialLinks: data.socialLinks || prev.socialLinks || []
+        }));
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, userDocPath);

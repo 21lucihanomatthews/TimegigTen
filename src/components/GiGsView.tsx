@@ -507,7 +507,7 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-0.5 block">Requirements</span>
                   <ul className="space-y-1">
-                    {selectedGig.requirements.map((req, idx) => (
+                    {(selectedGig.requirements || []).map((req, idx) => (
                       <li key={idx} className="text-slate-700 flex items-center gap-1.5 text-xs">
                         <span className="w-1 h-1 rounded-full bg-red-600"></span>
                         {req}

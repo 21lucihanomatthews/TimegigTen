@@ -19,7 +19,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
     seeker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     seeker.trade.toLowerCase().includes(searchQuery.toLowerCase()) ||
     seeker.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    seeker.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+    (seeker.skills || []).some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const handleHire = (id: string) => {
@@ -108,7 +108,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
 
                   {/* Skills tags */}
                   <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                    {seeker.skills.slice(0, 3).map((skill, i) => (
+                    {(seeker.skills || []).slice(0, 3).map((skill, i) => (
                       <span key={i} className="text-[9px] bg-transparent text-slate-700 px-1.5 py-0.5 rounded font-medium">
                         {skill}
                       </span>
@@ -222,7 +222,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold block mb-1">Verified Skills</span>
                   <div className="flex flex-wrap gap-1">
-                    {selectedSeeker.skills.map((skill, idx) => (
+                    {(selectedSeeker.skills || []).map((skill, idx) => (
                       <span key={idx} className="bg-red-50 text-red-700 px-2 py-0.5 rounded font-medium text-[10px] border border-red-100">
                         {skill}
                       </span>
