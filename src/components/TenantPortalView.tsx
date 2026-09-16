@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth, db, handleFirestoreError, OperationType } from '../firebase';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface TenantPortalViewProps {
   onClose: () => void;
@@ -12,10 +14,36 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'pop' | 'settings'>('overview');
   const [subscriptionFee, setSubscriptionFee] = useState('29.99');
   
-  const [appName, setAppName] = useState(() => localStorage.getItem('tenant_app_name') || 'TimeGiG');
-  const [appLogo, setAppLogo] = useState<string | null>(() => localStorage.getItem('tenant_app_logo') || null);
+  const [appName, setAppName] = useState('TimeGiG');
+  const [appLogo, setAppLogo] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const settingsDocPath = `tenantSettings/${auth.currentUser.uid}`;
+    const unsubscribe = onSnapshot(doc(db, settingsDocPath), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.appName) {
+          setAppName(data.appName);
+          localStorage.setItem('tenant_app_name', data.appName);
+        }
+        if (data.appLogo) {
+          setAppLogo(data.appLogo);
+          localStorage.setItem('tenant_app_logo', data.appLogo);
+        }
+        if (data.subscriptionFee) {
+          setSubscriptionFee(data.subscriptionFee);
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, settingsDocPath);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const customDomain = `https://${appName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'app'}.tg.com`;
 
@@ -43,20 +71,36 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
     }
   };
 
-  const handleSaveBranding = () => {
+  const handleSaveBranding = async () => {
+    if (!auth.currentUser) return;
     setIsSaving(true);
-    localStorage.setItem('tenant_app_name', appName);
-    if (appLogo) {
-      localStorage.setItem('tenant_app_logo', appLogo);
-    } else {
-      localStorage.removeItem('tenant_app_logo');
-    }
     
-    // Simulate API delay, then force reload to show splash screen with new branding
-    setTimeout(() => {
+    const settingsDocPath = `tenantSettings/${auth.currentUser.uid}`;
+    try {
+      await setDoc(doc(db, settingsDocPath), {
+        tenantId: auth.currentUser.uid,
+        appName,
+        appLogo,
+        subscriptionFee,
+        updatedAt: serverTimestamp()
+      });
+      
+      localStorage.setItem('tenant_app_name', appName);
+      if (appLogo) {
+        localStorage.setItem('tenant_app_logo', appLogo);
+      } else {
+        localStorage.removeItem('tenant_app_logo');
+      }
+
+      // Force reload to show splash screen with new branding
+      setTimeout(() => {
+        setIsSaving(false);
+        window.location.reload();
+      }, 800);
+    } catch (err) {
       setIsSaving(false);
-      window.location.reload();
-    }, 800);
+      handleFirestoreError(err, OperationType.WRITE, settingsDocPath);
+    }
   };
 
   return (

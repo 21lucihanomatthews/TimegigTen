@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information and authentication mapping",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "firstName": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "middleName": { "type": "string", "maxLength": 50 },
+        "surname": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "dob": { "type": "string", "format": "date" },
+        "address": { "type": "string", "maxLength": 200 },
+        "city": { "type": "string", "maxLength": 50 },
+        "province": { "type": "string", "maxLength": 50 },
+        "contactNumber": { "type": "string", "maxLength": 20 },
+        "socialLinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "platform": { "type": "string" },
+              "url": { "type": "string", "format": "uri" }
+            }
+          }
+        },
+        "facePhotoUrl": { "type": "string", "format": "uri" },
+        "idDocumentName": { "type": "string" },
+        "accountType": { "type": "string", "enum": ["User", "Tenant"] },
+        "isTenantApproved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "firstName", "surname", "accountType"]
+    },
+    "Gig": {
+      "title": "Gig",
+      "description": "Gig or job posting",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "company": { "type": "string", "maxLength": 100 },
+        "location": { "type": "string", "maxLength": 100 },
+        "budget": { "type": "string" },
+        "category": { "type": "string", "enum": ["Live Music", "Tech & Dev", "Design", "Production", "Events"] },
+        "date": { "type": "string" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "requirements": { "type": "array", "items": { "type": "string" } },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "avatar": { "type": "string" },
+        "urgent": { "type": "boolean" },
+        "createdBy": { "type": "string", "description": "UID of the creator" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "location", "category", "createdBy"]
+    },
+    "Seeker": {
+      "title": "Seeker",
+      "description": "Professional seeking gigs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "trade": { "type": "string" },
+        "rate": { "type": "string" },
+        "location": { "type": "string" },
+        "bio": { "type": "string", "maxLength": 500 },
+        "avatar": { "type": "string" },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "uid": { "type": "string" }
+      },
+      "required": ["name", "trade", "uid"]
+    },
+    "TenantSettings": {
+      "title": "Tenant Settings",
+      "description": "Custom branding and settings for tenants",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string" },
+        "appName": { "type": "string", "maxLength": 50 },
+        "appLogo": { "type": "string" },
+        "subscriptionFee": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tenantId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/gigs/{gigId}": {
+      "schema": "Gig",
+      "description": "Gig postings"
+    },
+    "/seekers/{seekerId}": {
+      "schema": "Seeker",
+      "description": "Professional seekers"
+    },
+    "/tenantSettings/{tenantId}": {
+      "schema": "TenantSettings",
+      "description": "Custom branding for tenants"
+    }
+  }
+}

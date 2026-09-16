@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Building2, Info, HelpCircle, LogOut, X, CheckCircle2, ChevronRight, ShieldCheck, DollarSign, Users, Briefcase } from 'lucide-react';
+import { Building2, Info, HelpCircle, LogOut, X, CheckCircle2, ChevronRight, Share2 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { TenantPortalView } from './TenantPortalView';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 
 interface SettingsViewProps {
   profile: UserProfile;
@@ -15,12 +17,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ profile }) => {
   const [tenantSuccess, setTenantSuccess] = useState(false);
 
   const handleTenantAccess = () => {
-    // In a real app, check if payment is already verified from backend or profile
-    const hasPaid = localStorage.getItem('tenant_paid') === 'true';
-    if (hasPaid) {
+    // If the profile already shows they are an approved tenant, open portal
+    if (profile.isTenantApproved) {
       setShowTenantPortal(true);
     } else {
       setActiveModal('tenant');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // Clean up UI local storage if any specific UI state needs reset
+      localStorage.removeItem('timegig_current_tab');
+      window.location.reload();
+    } catch (error) {
+      console.error('Logout Error:', error);
     }
   };
 
@@ -318,10 +330,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ profile }) => {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  localStorage.clear();
-                  window.location.reload();
-                }}
+                onClick={handleLogout}
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer"
               >
                 Confirm Logout

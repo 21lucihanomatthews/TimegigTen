@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react';
+import { Mail, Lock, ChevronRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { auth, db, handleFirestoreError, OperationType } from '../firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthViewProps {
   onLoginSuccess: () => void;
@@ -10,6 +13,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,37 +34,38 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
 
     setIsLoading(true);
 
-    // Mock authentication flow
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      if (isLogin) {
-        // Mock Login: In a real app, this would verify against a backend.
-        // For now, any email/password combo works as a mock if they have local storage set
-        const users = JSON.parse(localStorage.getItem('timegig_users') || '[]');
-        const userExists = users.some((u: any) => u.email === email && u.password === password);
-        
-        if (userExists) {
-          localStorage.setItem('timegig_auth_token', 'mock-token-123');
-          onLoginSuccess();
-        } else {
-          setError('Invalid email or password. Please try again or sign up.');
+    const authAction = isLogin 
+      ? signInWithEmailAndPassword(auth, email, password)
+      : createUserWithEmailAndPassword(auth, email, password);
+
+    authAction
+      .then(async (userCredential) => {
+        if (!isLogin) {
+          // On signup, create the initial user document
+          const user = userCredential.user;
+          const userDocPath = `users/${user.uid}`;
+          try {
+            await setDoc(doc(db, userDocPath), {
+              uid: user.uid,
+              email: user.email,
+              firstName: 'New',
+              surname: 'User',
+              accountType: 'User',
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              isTenantApproved: false
+            });
+          } catch (err) {
+            handleFirestoreError(err, OperationType.WRITE, userDocPath);
+          }
         }
-      } else {
-        // Mock Signup
-        const users = JSON.parse(localStorage.getItem('timegig_users') || '[]');
-        const userExists = users.some((u: any) => u.email === email);
-        
-        if (userExists) {
-          setError('An account with this email already exists.');
-        } else {
-          users.push({ email, password });
-          localStorage.setItem('timegig_users', JSON.stringify(users));
-          localStorage.setItem('timegig_auth_token', 'mock-token-123');
-          onLoginSuccess();
-        }
-      }
-    }, 1000);
+        setIsLoading(false);
+        onLoginSuccess();
+      })
+      .catch((err) => {
+        setIsLoading(false);
+        setError(err.message || 'Authentication failed. Please try again.');
+      });
   };
 
   return (
@@ -112,13 +117,24 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
                   <Lock className="h-4 w-4 text-slate-400" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 transition-colors"
+                  className="block w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-slate-50 transition-colors"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
             </div>
 

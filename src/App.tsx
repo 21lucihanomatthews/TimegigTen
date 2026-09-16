@@ -10,19 +10,29 @@ import { TopHeader } from './components/TopHeader';
 import { BottomNavBar } from './components/BottomNavBar';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Users, Settings, UserCircle, Star } from 'lucide-react';
+import { auth, db, handleFirestoreError, OperationType } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return !!localStorage.getItem('timegig_auth_token');
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   const [showSplash, setShowSplash] = useState(true);
   const appName = localStorage.getItem('tenant_app_name') || 'TimeGiG';
   const appLogo = localStorage.getItem('tenant_app_logo');
 
   useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+      setIsLoadingAuth(false);
+    });
+
     const timer = setTimeout(() => setShowSplash(false), 5000);
-    return () => clearTimeout(timer);
+    return () => {
+      unsubscribeAuth();
+      clearTimeout(timer);
+    };
   }, []);
 
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('timegig_welcome_shown'));
@@ -49,29 +59,32 @@ export default function App() {
     return INITIAL_SEEKERS;
   });
 
-  const [profile, setProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('timegig_profile');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
-    }
-    return {
-      firstName: 'Alex',
-      middleName: 'James',
-      surname: 'Morgan',
-      dob: '1995-06-14',
-      address: '42 Juta Street',
-      city: 'Johannesburg',
-      province: 'Gauteng',
-      contactNumber: '+27 82 555 0192',
-      socialLinks: [
-        { platform: 'LinkedIn', url: 'https://linkedin.com/in/alexmorgan' },
-        { platform: 'SoundCloud', url: 'https://soundcloud.com/alexmorgansound' }
-      ],
-      facePhotoUrl: '',
-      idDocumentName: '',
-      accountType: 'User'
-    };
+  const [profile, setProfile] = useState<UserProfile>({
+    firstName: '',
+    surname: '',
+    dob: '',
+    address: '',
+    city: '',
+    province: 'Gauteng',
+    contactNumber: '',
+    socialLinks: [],
+    accountType: 'User'
   });
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const userDocPath = `users/${auth.currentUser.uid}`;
+    const unsubscribeProfile = onSnapshot(doc(db, userDocPath), (snapshot) => {
+      if (snapshot.exists()) {
+        setProfile(snapshot.data() as UserProfile);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, userDocPath);
+    });
+
+    return () => unsubscribeProfile();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (currentTab !== 'settings') {
@@ -87,9 +100,18 @@ export default function App() {
     localStorage.setItem('timegig_seekers', JSON.stringify(seekers));
   }, [seekers]);
 
-  useEffect(() => {
-    localStorage.setItem('timegig_profile', JSON.stringify(profile));
-  }, [profile]);
+  const handleUpdateProfile = async (updated: UserProfile) => {
+    if (!auth.currentUser) return;
+    const userDocPath = `users/${auth.currentUser.uid}`;
+    try {
+      await updateDoc(doc(db, userDocPath), {
+        ...updated,
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, userDocPath);
+    }
+  };
 
   const handleSelectTab = (tab: NavTab) => {
     if (tab !== 'settings' && currentTab !== 'settings') {
@@ -138,16 +160,17 @@ export default function App() {
     setShowTenantPopup(false);
   };
 
-  if (showSplash) {
+  if (showSplash || isLoadingAuth) {
     return (
       <AnimatePresence>
-        <motion.div
-          key="splash"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center"
-        >
+        {(showSplash || isLoadingAuth) && (
+          <motion.div
+            key="splash"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center"
+          >
           <motion.div 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -169,6 +192,7 @@ export default function App() {
             </div>
           </motion.div>
         </motion.div>
+        )}
       </AnimatePresence>
     );
   }
@@ -194,7 +218,7 @@ export default function App() {
           />
         )}
         {currentTab === 'profile' && (
-          <ProfileView profile={profile} onUpdateProfile={setProfile} />
+          <ProfileView profile={profile} onUpdateProfile={handleUpdateProfile} />
         )}
         {currentTab === 'settings' && (
           <SettingsView profile={profile} />
