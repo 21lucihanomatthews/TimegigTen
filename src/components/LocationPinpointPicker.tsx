@@ -56,16 +56,18 @@ export const LocationPinpointPicker: React.FC<LocationPinpointPickerProps> = ({
   // Synchronize internal state when props change externally
   useEffect(() => {
     if (lat && lng && (lat !== currentLat || lng !== currentLng)) {
-      setCurrentLat(lat);
-      setCurrentLng(lng);
-      if (markerRef.current) {
-        markerRef.current.setLatLng([lat, lng]);
-      }
-      if (pulseCircleRef.current) {
-        pulseCircleRef.current.setLatLng([lat, lng]);
-      }
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
+      if (!isNaN(lat) && !isNaN(lng)) {
+        setCurrentLat(lat);
+        setCurrentLng(lng);
+        if (markerRef.current) {
+          markerRef.current.setLatLng([lat, lng]);
+        }
+        if (pulseCircleRef.current) {
+          pulseCircleRef.current.setLatLng([lat, lng]);
+        }
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
+        }
       }
     }
   }, [lat, lng]);
@@ -315,19 +317,22 @@ export const LocationPinpointPicker: React.FC<LocationPinpointPickerProps> = ({
         if (results && results.length > 0) {
           const matchLat = parseFloat(results[0].lat);
           const matchLng = parseFloat(results[0].lon);
-          setCurrentLat(matchLat);
-          setCurrentLng(matchLng);
+          
+          if (!isNaN(matchLat) && !isNaN(matchLng)) {
+            setCurrentLat(matchLat);
+            setCurrentLng(matchLng);
 
-          if (markerRef.current) {
-            markerRef.current.setLatLng([matchLat, matchLng]);
+            if (markerRef.current) {
+              markerRef.current.setLatLng([matchLat, matchLng]);
+            }
+            if (pulseCircleRef.current) {
+              pulseCircleRef.current.setLatLng([matchLat, matchLng]);
+            }
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current.flyTo([matchLat, matchLng], 16, { duration: 1.2 });
+            }
+            onChange({ lat: matchLat, lng: matchLng });
           }
-          if (pulseCircleRef.current) {
-            pulseCircleRef.current.setLatLng([matchLat, matchLng]);
-          }
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.flyTo([matchLat, matchLng], 16, { duration: 1.2 });
-          }
-          onChange({ lat: matchLat, lng: matchLng });
         }
       }
     } catch {

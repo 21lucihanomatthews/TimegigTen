@@ -11,6 +11,7 @@ import { useTenant } from './TenantContext';
 import { MainAdminDashboard } from './components/MainAdminDashboard';
 import { TenantOwnerDashboard } from './components/TenantOwnerDashboard';
 import { TenantLockedView } from './components/TenantLockedView';
+import { AwaitingApprovalView } from './components/AwaitingApprovalView';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Users, Settings, UserCircle, Star, AlertCircle, LogOut, Sparkles, Clock, Maximize2 } from 'lucide-react';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
@@ -368,6 +369,16 @@ export default function App() {
 
   if (!isAuthenticated) {
     return <AuthView onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
+  // Check for tenant approval if user belongs to a tenant and is not an admin
+  const needsApproval = currentTenant && 
+                      profile.tenantId === currentTenant.id && 
+                      !profile.isTenantApproved && 
+                      profile.accountType === 'User';
+
+  if (needsApproval) {
+    return <AwaitingApprovalView appName={appName} userEmail={auth.currentUser?.email || ''} />;
   }
 
   return (

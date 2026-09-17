@@ -7,6 +7,7 @@ export interface Tenant {
   primaryColor?: string;
   secondaryColor?: string;
   ownerUid: string;
+  ownerEmail: string;
   status: 'active' | 'expired' | 'suspended';
   subscriptionStatus: 'trial' | 'active' | 'expired';
   trialStartDate: any; // Firestore Timestamp
@@ -66,6 +67,7 @@ export interface UserProfile {
   socialLinks: { platform: string; url: string }[];
   facePhotoUrl?: string;
   idDocumentName?: string;
+  idDocumentUrl?: string;
   accountType?: 'User' | 'TenantOwner' | 'MainAdmin';
   isTenantApproved?: boolean;
 }

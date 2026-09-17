@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Tenant, UserProfile } from '../types';
-import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CreditCard, ExternalLink, AlertCircle, Maximize2, Clock, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CreditCard, ExternalLink, AlertCircle, Maximize2, Clock, CheckCircle2, UserCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 
 import { PLATFORM_CONFIG } from '../config';
 
@@ -14,9 +14,11 @@ interface TenantOwnerDashboardProps {
 }
 
 export const TenantOwnerDashboard: React.FC<TenantOwnerDashboardProps> = ({ tenant, profile, onViewFullScreenLogo }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'branding' | 'billing'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'branding' | 'billing' | 'users'>('overview');
   const [isCopied, setIsCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [tenantUsers, setTenantUsers] = useState<UserProfile[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   
   const [appName, setAppName] = useState(tenant.name);
   const [appLogo, setAppLogo] = useState(tenant.logoUrl || null);
@@ -49,6 +51,50 @@ export const TenantOwnerDashboard: React.FC<TenantOwnerDashboardProps> = ({ tena
       }
     } else {
       handleCopyLink();
+    }
+  };
+
+  useEffect(() => {
+    if (tenant.id) {
+      fetchUsers();
+    }
+  }, [tenant.id]);
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const q = query(collection(db, 'users'), where('tenantId', '==', tenant.id));
+      const querySnapshot = await getDocs(q);
+      const users = querySnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserProfile));
+      setTenantUsers(users);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, 'users');
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const handleApproveUser = async (userUid: string) => {
+    try {
+      await updateDoc(doc(db, 'users', userUid), {
+        isTenantApproved: true,
+        updatedAt: serverTimestamp()
+      });
+      setTenantUsers(prev => prev.map(u => u.uid === userUid ? { ...u, isTenantApproved: true } : u));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${userUid}`);
+    }
+  };
+
+  const handleRejectUser = async (userUid: string) => {
+    try {
+      await updateDoc(doc(db, 'users', userUid), {
+        isTenantApproved: false,
+        updatedAt: serverTimestamp()
+      });
+      setTenantUsers(prev => prev.map(u => u.uid === userUid ? { ...u, isTenantApproved: false } : u));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${userUid}`);
     }
   };
 
@@ -122,16 +168,17 @@ export const TenantOwnerDashboard: React.FC<TenantOwnerDashboardProps> = ({ tena
         </div>
       </div>
 
-      <div className="bg-white p-1 rounded-2xl border border-slate-100 flex shadow-sm">
+      <div className="bg-white p-1 rounded-2xl border border-slate-100 flex shadow-sm overflow-x-auto no-scrollbar">
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+          { id: 'users', label: 'Users', icon: Users },
           { id: 'branding', label: 'Branding', icon: ImageIcon },
           { id: 'billing', label: 'Subscription', icon: CreditCard },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === tab.id 
                 ? 'bg-slate-900 text-white shadow-md' 
                 : 'text-slate-500 hover:bg-slate-50'
@@ -168,13 +215,17 @@ export const TenantOwnerDashboard: React.FC<TenantOwnerDashboardProps> = ({ tena
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Users</p>
-              <div className="text-2xl font-bold text-slate-900">12</div>
-              <p className="text-[10px] text-emerald-500 font-medium mt-1">+2 this week</p>
+              <div className="text-2xl font-bold text-slate-900">
+                {tenantUsers.filter(u => u.isTenantApproved).length}
+              </div>
+              <p className="text-[10px] text-emerald-500 font-medium mt-1">Verified members</p>
             </div>
-            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Live Gigs</p>
-              <div className="text-2xl font-bold text-slate-900">8</div>
-              <p className="text-[10px] text-indigo-500 font-medium mt-1">Tenant exclusive</p>
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setActiveTab('users')}>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Approval</p>
+              <div className="text-2xl font-bold text-amber-600">
+                {tenantUsers.filter(u => !u.isTenantApproved).length}
+              </div>
+              <p className="text-[10px] text-amber-500 font-medium mt-1">Review profiles</p>
             </div>
           </div>
 
@@ -230,6 +281,90 @@ export const TenantOwnerDashboard: React.FC<TenantOwnerDashboardProps> = ({ tena
               </li>
             </ul>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-bold text-slate-900">User Approvals</h2>
+            <button 
+              onClick={fetchUsers}
+              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+            >
+              <Clock className="w-4 h-4" />
+            </button>
+          </div>
+
+          {isLoadingUsers ? (
+            <div className="py-20 text-center">
+              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-xs text-slate-400">Loading users...</p>
+            </div>
+          ) : tenantUsers.length === 0 ? (
+            <div className="bg-white p-10 rounded-3xl border border-slate-100 text-center space-y-3">
+              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
+                <Users className="w-6 h-6" />
+              </div>
+              <p className="text-xs font-bold text-slate-900">No users found</p>
+              <p className="text-[10px] text-slate-400">Users who join through your link will appear here for approval.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tenantUsers.map((u) => (
+                <div key={u.uid} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 overflow-hidden flex items-center justify-center border border-slate-100">
+                      {u.facePhotoUrl ? (
+                        <img src={u.facePhotoUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <UserCircle className="w-5 h-5 text-slate-300" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-slate-900 truncate">
+                        {u.firstName} {u.surname}
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] text-slate-500 truncate">{u.email}</p>
+                        {u.idDocumentName && (
+                          <button 
+                            onClick={() => u.idDocumentUrl && onViewFullScreenLogo?.(u.idDocumentUrl)}
+                            className="flex items-center gap-0.5 text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded-md border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                          >
+                            <FileText className="w-2.5 h-2.5" /> View ID
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                      u.isTenantApproved ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                    }`}>
+                      {u.isTenantApproved ? 'Approved' : 'Pending'}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {!u.isTenantApproved ? (
+                      <button
+                        onClick={() => u.uid && handleApproveUser(u.uid)}
+                        className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => u.uid && handleRejectUser(u.uid)}
+                        className="flex-1 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <X className="w-3.5 h-3.5" /> Reject
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -27,6 +27,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
   const [submitted, setSubmitted] = useState(false);
 
   const isLocked = profile.isTenantApproved;
+  const isPending = !profile.isTenantApproved && profile.tenantId;
 
   const handleAddSocial = () => {
     if (!newUrl.trim() || isLocked) return;
@@ -63,15 +64,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
     if (isLocked) return;
     const file = e.target.files?.[0];
     if (file) {
-      setFormData(prev => ({ ...prev, idDocumentName: file.name }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ 
+          ...prev, 
+          idDocumentName: file.name,
+          idDocumentUrl: reader.result as string 
+        }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isLocked) return;
-    const isTenantApproved = formData.accountType === 'Tenant';
-    onUpdateProfile({ ...formData, isTenantApproved });
+    onUpdateProfile(formData);
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
   };
@@ -82,12 +90,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
         <div>
           <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
             <span>Profile Settings</span>
-            <span className={`text-[10px] font-semibold px-2 py-0.2 rounded-full border ${isLocked ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-              {isLocked ? 'Approved & Locked' : 'Verified'}
+            <span className={`text-[10px] font-semibold px-2 py-0.2 rounded-full border ${
+              isLocked ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+              isPending ? 'bg-amber-50 text-amber-700 border-amber-200' :
+              'bg-slate-50 text-slate-600 border-slate-200'
+            }`}>
+              {isLocked ? 'Approved' : isPending ? 'Pending Approval' : 'Verified'}
             </span>
           </h1>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            {isLocked ? 'Your profile is locked because you are an approved tenant.' : 'Manage your credentials, photo, and identity documents'}
+            {isLocked ? 'Your profile is approved and locked.' : 
+             isPending ? 'Waiting for admin to review your documents.' :
+             'Manage your credentials, photo, and identity documents'}
           </p>
         </div>
       </div>

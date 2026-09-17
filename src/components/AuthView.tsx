@@ -48,16 +48,17 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
         if (!isLogin) {
           // On signup, create the initial user document
           try {
+            const isOwner = currentTenant && user.email === currentTenant.ownerEmail;
             await setDoc(doc(db, userDocPath), {
               uid: user.uid,
               tenantId: currentTenant?.id || null, // Link to current tenant
               email: user.email,
               firstName: 'New',
               surname: 'User',
-              accountType: 'User',
+              accountType: isOwner ? 'TenantOwner' : 'User',
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-              isTenantApproved: false
+              isTenantApproved: isOwner ? true : false
             });
           } catch (err) {
             handleFirestoreError(err, OperationType.WRITE, userDocPath);
@@ -88,16 +89,17 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
       // Check if user document exists, if not create it
       const userDoc = await getDoc(doc(db, userDocPath));
       if (!userDoc.exists()) {
+        const isOwner = currentTenant && user.email === currentTenant.ownerEmail;
         await setDoc(doc(db, userDocPath), {
           uid: user.uid,
           tenantId: currentTenant?.id || null,
           email: user.email,
           firstName: user.displayName?.split(' ')[0] || 'New',
           surname: user.displayName?.split(' ').slice(1).join(' ') || 'User',
-          accountType: 'User',
+          accountType: isOwner ? 'TenantOwner' : 'User',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          isTenantApproved: false
+          isTenantApproved: isOwner ? true : false
         });
       }
       

@@ -589,7 +589,11 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
             if (res && res.ok) {
               const data = await res.json().catch(() => null);
               if (data && data.length > 0) {
-                map.flyTo([parseFloat(data[0].lat), parseFloat(data[0].lon)], 16, { duration: 1.2 });
+                const searchLat = parseFloat(data[0].lat);
+                const searchLng = parseFloat(data[0].lon);
+                if (!isNaN(searchLat) && !isNaN(searchLng)) {
+                  map.flyTo([searchLat, searchLng], 16, { duration: 1.2 });
+                }
               }
             }
           } catch {
