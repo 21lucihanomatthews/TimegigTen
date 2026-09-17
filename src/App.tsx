@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { NavTab, Gig, UserProfile, Seeker } from './types';
-import { INITIAL_GIGS, INITIAL_SEEKERS } from './data';
 import { GiGsView } from './components/GiGsView';
 import { SeekersView } from './components/SeekersView';
 import { ProfileView } from './components/ProfileView';
@@ -103,21 +102,8 @@ export default function App() {
 
   const [previousTab, setPreviousTab] = useState<NavTab>('gigs');
 
-  const [gigs, setGigs] = useState<Gig[]>(() => {
-    const saved = localStorage.getItem('timegig_gigs');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
-    }
-    return INITIAL_GIGS;
-  });
-
-  const [seekers, setSeekers] = useState<Seeker[]>(() => {
-    const saved = localStorage.getItem('timegig_seekers');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* fallback */ }
-    }
-    return INITIAL_SEEKERS;
-  });
+  const [gigs, setGigs] = useState<Gig[]>([]);
+  const [seekers, setSeekers] = useState<Seeker[]>([]);
 
   const [profile, setProfile] = useState<UserProfile>({
     firstName: '',
@@ -159,35 +145,21 @@ export default function App() {
     if (!auth.currentUser) return;
 
     const unsubscribeGigs = onSnapshot(collection(db, 'gigs'), (snapshot) => {
-      if (!snapshot.empty) {
-        const cloudGigs: Gig[] = snapshot.docs.map(d => ({
-          ...(d.data() as Gig),
-          id: d.id
-        }));
-
-        setGigs(prev => {
-          const cloudIds = new Set(cloudGigs.map(g => g.id));
-          const localOnly = prev.filter(g => !cloudIds.has(g.id));
-          return [...cloudGigs, ...localOnly];
-        });
-      }
+      const cloudGigs: Gig[] = snapshot.docs.map(d => ({
+        ...(d.data() as Gig),
+        id: d.id
+      }));
+      setGigs(cloudGigs);
     }, (err) => {
       console.warn('Gigs Firestore listener note:', err);
     });
 
     const unsubscribeSeekers = onSnapshot(collection(db, 'seekers'), (snapshot) => {
-      if (!snapshot.empty) {
-        const cloudSeekers: Seeker[] = snapshot.docs.map(d => ({
-          ...(d.data() as Seeker),
-          id: d.id
-        }));
-
-        setSeekers(prev => {
-          const cloudIds = new Set(cloudSeekers.map(s => s.id));
-          const localOnly = prev.filter(s => !cloudIds.has(s.id));
-          return [...cloudSeekers, ...localOnly];
-        });
-      }
+      const cloudSeekers: Seeker[] = snapshot.docs.map(d => ({
+        ...(d.data() as Seeker),
+        id: d.id
+      }));
+      setSeekers(cloudSeekers);
     }, (err) => {
       console.warn('Seekers Firestore listener note:', err);
     });
@@ -217,14 +189,6 @@ export default function App() {
       localStorage.setItem('timegig_current_tab', currentTab);
     }
   }, [currentTab]);
-
-  useEffect(() => {
-    localStorage.setItem('timegig_gigs', JSON.stringify(gigs));
-  }, [gigs]);
-
-  useEffect(() => {
-    localStorage.setItem('timegig_seekers', JSON.stringify(seekers));
-  }, [seekers]);
 
   const handleUpdateProfile = async (updated: UserProfile) => {
     if (!auth.currentUser) return;
@@ -257,16 +221,32 @@ export default function App() {
     }
   };
 
-  const handleToggleSave = (id: string) => {
-    setGigs(gigs.map(g => g.id === id ? { ...g, saved: !g.saved } : g));
+  const handleToggleSave = async (id: string) => {
+    const gig = gigs.find(g => g.id === id);
+    if (!gig || !auth.currentUser) return;
+    try {
+      await updateDoc(doc(db, 'gigs', id), { saved: !gig.saved });
+    } catch (err) {
+      console.warn('Failed to toggle save:', err);
+    }
   };
 
-  const handleApplyGig = (id: string) => {
-    setGigs(gigs.map(g => g.id === id ? { ...g, applied: true } : g));
+  const handleApplyGig = async (id: string) => {
+    if (!auth.currentUser) return;
+    try {
+      await updateDoc(doc(db, 'gigs', id), { applied: true });
+    } catch (err) {
+      console.warn('Failed to apply to gig:', err);
+    }
   };
 
-  const handleHireSeeker = (id: string) => {
-    setSeekers(seekers.map(s => s.id === id ? { ...s, hired: true } : s));
+  const handleHireSeeker = async (id: string) => {
+    if (!auth.currentUser) return;
+    try {
+      await updateDoc(doc(db, 'seekers', id), { hired: true });
+    } catch (err) {
+      console.warn('Failed to hire seeker:', err);
+    }
   };
 
   const handleCreateGig = async (newGig: Gig) => {

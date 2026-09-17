@@ -3,7 +3,7 @@ import { UserProfile } from '../types';
 import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CheckCircle2, MessageCircle, Facebook, Send, Maximize2, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp, collection, query, where } from 'firebase/firestore';
 import { PLATFORM_CONFIG } from '../config';
 
 interface TenantPortalViewProps {
@@ -85,12 +85,30 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
     window.open(shareUrl, '_blank');
   };
 
-  // Mock Active Verified Users
-  const activeUsers = [
-    { id: 1, name: 'Sarah Jenkins', role: 'Premium Seeker', earnings: 450, photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop' },
-    { id: 2, name: 'Mike Ross', role: 'Verified Gig Worker', earnings: 820, photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop' },
-    { id: 3, name: 'Jessica Alba', role: 'Premium Seeker', earnings: 120, photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop' },
-  ];
+  const [activeUsers, setActiveUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const currentUid = auth.currentUser?.uid || profile.uid;
+    if (!currentUid) return;
+
+    // Listen for tenant users
+    const usersQuery = query(collection(db, 'users'), where('tenantId', '==', currentUid));
+    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        setActiveUsers(snapshot.docs.map(doc => ({
+          id: doc.id,
+          name: `${doc.data().firstName} ${doc.data().surname}`,
+          role: doc.data().accountType || 'User',
+          earnings: 0, // Mock for now since we don't have earnings schema
+          photo: doc.data().facePhotoUrl || `https://ui-avatars.com/api/?name=${doc.data().firstName}+${doc.data().surname}&background=random`
+        })));
+      } else {
+        setActiveUsers([]);
+      }
+    });
+
+    return () => unsubscribeUsers();
+  }, [profile.uid]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

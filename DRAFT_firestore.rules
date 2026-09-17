@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'firstName', 'surname', 'createdAt', 'updatedAt'])
+        && data.uid == request.auth.uid
+        && data.uid is string && data.uid.size() <= 128
+        && data.firstName is string && data.firstName.size() <= 50
+        && data.surname is string && data.surname.size() <= 50
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false; // Users shouldn't list all users directly unless required, but Seekers profile has public data
+      allow create: if isSignedIn() 
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUser(incoming())
+        && incoming().createdAt == request.time.toMillis()
+        && incoming().updatedAt == request.time.toMillis();
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time.toMillis();
+    }
+
+    function isValidGig(data) {
+      return data.keys().hasAll(['id', 'title', 'company', 'location', 'category', 'description', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 200
+        && data.company is string && data.company.size() <= 200
+        && data.location is string && data.location.size() <= 200
+        && data.category is string && data.category.matches('^(Live Music|Tech & Dev|Design|Production|Events)$')
+        && data.description is string && data.description.size() <= 5000
+        && data.createdBy == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    match /gigs/{gigId} {
+      // Anyone signed in can view gigs
+      allow read: if isSignedIn() && isValidId(gigId);
+      allow create: if isSignedIn()
+        && isValidId(gigId)
+        && isValidGig(incoming())
+        && incoming().createdAt == request.time.toMillis()
+        && incoming().updatedAt == request.time.toMillis();
+      allow update: if isSignedIn()
+        && isValidId(gigId)
+        && existing().createdBy == request.auth.uid
+        && isValidGig(incoming())
+        && incoming().id == existing().id
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time.toMillis();
+      allow delete: if isSignedIn() && isValidId(gigId) && existing().createdBy == request.auth.uid;
+    }
+
+    function isValidSeeker(data) {
+      return data.keys().hasAll(['id', 'name', 'trade', 'location', 'uid', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 200
+        && data.trade is string && data.trade.size() <= 200
+        && data.location is string && data.location.size() <= 200
+        && data.uid == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    match /seekers/{seekerId} {
+      // Anyone signed in can view seekers
+      allow read: if isSignedIn() && isValidId(seekerId);
+      allow create: if isSignedIn()
+        && isValidId(seekerId)
+        && isValidSeeker(incoming())
+        && incoming().createdAt == request.time.toMillis()
+        && incoming().updatedAt == request.time.toMillis();
+      allow update: if isSignedIn()
+        && isValidId(seekerId)
+        && existing().uid == request.auth.uid
+        && isValidSeeker(incoming())
+        && incoming().id == existing().id
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time.toMillis();
+      allow delete: if isSignedIn() && isValidId(seekerId) && existing().uid == request.auth.uid;
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if isSignedIn() && isValidId(tenantId);
+      allow write: if false; // Tenant changes through admin SDK only for now
+    }
+
+    match /tenantSettings/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+      allow write: if false; // Updated via backend
+    }
+  }
+}

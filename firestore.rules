@@ -95,7 +95,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if isMainAdmin();
+      allow list: if isMainAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/tenants/$(getUserData().tenantId)) && get(/databases/$(database)/documents/tenants/$(getUserData().tenantId)).data.ownerUid == request.auth.uid);
       allow create: if isSignedIn() && userId == request.auth.uid && (
         !incoming().keys().contains('tenantId') || 
         incoming().tenantId == null || 
@@ -141,7 +141,11 @@ service cloud.firestore {
         !incoming().keys().contains('tenantId') || 
         belongsToTenant(incoming().tenantId)
       );
-      allow update: if isSignedIn() && (isOwner(existing().uid) || isMainAdmin());
+      allow update: if isSignedIn() && (
+        isOwner(existing().uid) || 
+        isMainAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['hired'])
+      );
       allow delete: if isMainAdmin();
     }
   }
