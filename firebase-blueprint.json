@@ -6,6 +6,7 @@
       "type": "object",
       "properties": {
         "uid": { "type": "string", "description": "Auth UID" },
+        "tenantId": { "type": "string", "description": "The tenant this user belongs to" },
         "email": { "type": "string", "format": "email" },
         "firstName": { "type": "string", "minLength": 1, "maxLength": 50 },
         "middleName": { "type": "string", "maxLength": 50 },
@@ -27,7 +28,7 @@
         },
         "facePhotoUrl": { "type": "string", "format": "uri" },
         "idDocumentName": { "type": "string" },
-        "accountType": { "type": "string", "enum": ["User", "Tenant"] },
+        "accountType": { "type": "string", "enum": ["User", "TenantOwner", "MainAdmin"] },
         "isTenantApproved": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -40,6 +41,7 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "tenantId": { "type": "string" },
         "title": { "type": "string", "minLength": 1, "maxLength": 100 },
         "company": { "type": "string", "maxLength": 100 },
         "location": { "type": "string", "maxLength": 100 },
@@ -63,6 +65,7 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "tenantId": { "type": "string" },
         "name": { "type": "string" },
         "trade": { "type": "string" },
         "rate": { "type": "string" },
@@ -74,24 +77,58 @@
       },
       "required": ["name", "trade", "uid"]
     },
-    "TenantSettings": {
-      "title": "Tenant Settings",
-      "description": "Custom branding and settings for tenants",
+    "Tenant": {
+      "title": "Tenant",
+      "description": "Tenant profile and branding",
       "type": "object",
       "properties": {
-        "tenantId": { "type": "string" },
-        "appName": { "type": "string", "maxLength": 50 },
+        "id": { "type": "string" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "slug": { "type": "string", "minLength": 3, "maxLength": 50 },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "expired", "suspended"] },
+        "subscriptionStatus": { "type": "string", "enum": ["trial", "active", "expired"] },
+        "trialStartDate": { "type": "string", "format": "date-time" },
+        "trialEndDate": { "type": "string", "format": "date-time" },
+        "subscriptionStartDate": { "type": "string", "format": "date-time" },
+        "subscriptionEndDate": { "type": "string", "format": "date-time" },
+        "subscriptionPrice": { "type": "number" },
+        "currency": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug", "ownerUid", "status"]
+    },
+    "TenantSettings": {
+      "title": "TenantSettings",
+      "description": "Per-user tenant custom configuration and portal branding",
+      "type": "object",
+      "properties": {
+        "tenantId": { "type": "string", "description": "Tenant or owner UID" },
+        "appName": { "type": "string", "maxLength": 100 },
+        "slug": { "type": "string", "maxLength": 50 },
         "appLogo": { "type": "string" },
-        "subscriptionFee": { "type": "string" },
+        "subscriptionFee": { "type": "string", "maxLength": 50 },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["tenantId"]
     }
   },
   "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": "Tenant",
+      "description": "Tenant profiles"
+    },
     "/users/{userId}": {
       "schema": "User",
       "description": "User profiles"
+    },
+    "/tenantSettings/{userId}": {
+      "schema": "TenantSettings",
+      "description": "Tenant portal settings for a user"
     },
     "/gigs/{gigId}": {
       "schema": "Gig",
@@ -100,10 +137,6 @@
     "/seekers/{seekerId}": {
       "schema": "Seeker",
       "description": "Professional seekers"
-    },
-    "/tenantSettings/{tenantId}": {
-      "schema": "TenantSettings",
-      "description": "Custom branding for tenants"
     }
   }
 }

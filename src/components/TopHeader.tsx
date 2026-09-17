@@ -23,7 +23,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ currentTab, onSelectTab, o
         onClick={onToggleSettings}
         className={`p-2 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
           currentTab === 'settings'
-            ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-xs'
+            ? 'bg-brand/10 border-brand/20 text-brand shadow-xs'
             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
         }`}
         aria-label="Settings"

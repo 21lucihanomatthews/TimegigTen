@@ -5,6 +5,8 @@ import { TenantPortalView } from './TenantPortalView';
 import { auth } from '../firebase';
 import { signOut } from 'firebase/auth';
 
+import { PLATFORM_CONFIG } from '../config';
+
 interface SettingsViewProps {
   profile: UserProfile;
 }
@@ -196,7 +198,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ profile }) => {
 
             <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl mb-4 mt-2">
               <p className="text-[11px] text-indigo-800 font-medium mb-2 leading-relaxed">
-                All tenants must pay a monthly subscription fee of <strong>R299,99</strong> to access management features.
+                All tenants must pay a monthly subscription fee of <strong>{PLATFORM_CONFIG.currency}{PLATFORM_CONFIG.subscriptionPrice.toLocaleString()}</strong> to access management features.
               </p>
               <div className="bg-white p-2.5 rounded-lg border border-indigo-100 text-xs text-slate-700 space-y-1 shadow-xs">
                 <div className="flex justify-between"><span>Bank:</span> <strong className="text-slate-900">Capitec</strong></div>

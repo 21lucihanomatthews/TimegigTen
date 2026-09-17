@@ -8,32 +8,44 @@ import { SettingsView } from './components/SettingsView';
 import { AuthView } from './components/AuthView';
 import { TopHeader } from './components/TopHeader';
 import { BottomNavBar } from './components/BottomNavBar';
+import { useTenant } from './TenantContext';
+import { MainAdminDashboard } from './components/MainAdminDashboard';
+import { TenantOwnerDashboard } from './components/TenantOwnerDashboard';
+import { TenantLockedView } from './components/TenantLockedView';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Settings, UserCircle, Star } from 'lucide-react';
+import { MapPin, Users, Settings, UserCircle, Star, AlertCircle, LogOut } from 'lucide-react';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function App() {
+  const { currentTenant, isLoadingTenant, tenantError, isPlatformMode } = useTenant();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   const [showSplash, setShowSplash] = useState(true);
-  const appName = localStorage.getItem('tenant_app_name') || 'TimeGiG';
-  const appLogo = localStorage.getItem('tenant_app_logo');
+  
+  // Use tenant branding if available
+  const appName = currentTenant?.name || localStorage.getItem('tenant_app_name') || 'TimeGiG';
+  const appLogo = currentTenant?.logoUrl || localStorage.getItem('tenant_app_logo');
+  const primaryColor = currentTenant?.primaryColor || '#4f46e5';
 
   useEffect(() => {
+    // Inject dynamic theme color
+    document.documentElement.style.setProperty('--primary-color', primaryColor);
+    
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
       setIsLoadingAuth(false);
     });
 
     const timer = setTimeout(() => setShowSplash(false), 5000);
+    
     return () => {
       unsubscribeAuth();
       clearTimeout(timer);
     };
-  }, []);
+  }, [primaryColor]);
 
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('timegig_welcome_shown'));
   const [showTenantPopup, setShowTenantPopup] = useState(false);
@@ -165,10 +177,10 @@ export default function App() {
     setShowTenantPopup(false);
   };
 
-  if (showSplash || isLoadingAuth) {
+  if (showSplash || isLoadingAuth || isLoadingTenant) {
     return (
       <AnimatePresence>
-        {(showSplash || isLoadingAuth) && (
+        {(showSplash || isLoadingAuth || isLoadingTenant) && (
           <motion.div
             key="splash"
             initial={{ opacity: 1 }}
@@ -202,6 +214,26 @@ export default function App() {
     );
   }
 
+  if (tenantError) {
+    return (
+      <div className="fixed inset-0 bg-white flex flex-col items-center justify-center p-6 text-center">
+        <AlertCircle className="w-16 h-16 text-rose-500 mb-4" />
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">{tenantError}</h1>
+        <p className="text-slate-500 text-sm mb-6">We couldn't find the application you're looking for.</p>
+        <button 
+          onClick={() => window.location.href = 'https://timegig.com'}
+          className="px-6 py-3 bg-black text-white font-bold rounded-2xl text-sm"
+        >
+          Return to TimeGiG
+        </button>
+      </div>
+    );
+  }
+
+  if (currentTenant?.subscriptionStatus === 'expired' && profile.accountType !== 'MainAdmin') {
+    return <TenantLockedView tenant={currentTenant} />;
+  }
+
   if (!isAuthenticated) {
     return <AuthView onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
@@ -212,11 +244,15 @@ export default function App() {
 
       <main className="max-w-xl mx-auto">
         {currentTab === 'gigs' && (
-          <GiGsView gigs={gigs} onToggleSave={handleToggleSave} onApplyGig={handleApplyGig} />
+          <GiGsView 
+            gigs={currentTenant ? gigs.filter(g => g.tenantId === currentTenant.id) : gigs.filter(g => !g.tenantId)} 
+            onToggleSave={handleToggleSave} 
+            onApplyGig={handleApplyGig} 
+          />
         )}
         {currentTab === 'seekers' && (
           <SeekersView
-            seekers={seekers}
+            seekers={currentTenant ? seekers.filter(s => s.tenantId === currentTenant.id) : seekers.filter(s => !s.tenantId)}
             onHireSeeker={handleHireSeeker}
             onOpenProfile={() => handleSelectTab('profile')}
             userProfilePhoto={profile.facePhotoUrl}
@@ -228,6 +264,12 @@ export default function App() {
         {currentTab === 'settings' && (
           <SettingsView profile={profile} />
         )}
+        {currentTab === 'admin' && profile.accountType === 'MainAdmin' && (
+          <MainAdminDashboard />
+        )}
+        {currentTab === 'tenant-admin' && (profile.accountType === 'TenantOwner' || profile.accountType === 'MainAdmin') && currentTenant && (
+          <TenantOwnerDashboard tenant={currentTenant} profile={profile} />
+        )}
       </main>
 
       <BottomNavBar
@@ -235,6 +277,7 @@ export default function App() {
         onSelectTab={handleSelectTab}
         profilePhoto={profile.facePhotoUrl}
         isTenantApproved={profile.isTenantApproved}
+        accountType={profile.accountType}
       />
 
       <AnimatePresence>

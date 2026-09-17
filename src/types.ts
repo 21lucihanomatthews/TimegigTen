@@ -1,5 +1,27 @@
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  ownerUid: string;
+  status: 'active' | 'expired' | 'suspended';
+  subscriptionStatus: 'trial' | 'active' | 'expired';
+  trialStartDate: any; // Firestore Timestamp
+  trialEndDate: any; // Firestore Timestamp
+  subscriptionStartDate?: any;
+  subscriptionEndDate?: any;
+  subscriptionPrice: number;
+  currency: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
 export interface Gig {
   id: string;
+  tenantId?: string; // Optional for global gigs, mandatory for tenant-specific ones
   title: string;
   company: string;
   location: string;
@@ -16,9 +38,11 @@ export interface Gig {
   avatar: string;
 }
 
-export type NavTab = 'gigs' | 'seekers' | 'profile' | 'settings';
+export type NavTab = 'gigs' | 'seekers' | 'profile' | 'settings' | 'admin' | 'tenant-admin';
 
 export interface UserProfile {
+  uid?: string;
+  tenantId?: string; // The tenant this user belongs to
   firstName: string;
   middleName?: string;
   surname: string;
@@ -30,12 +54,13 @@ export interface UserProfile {
   socialLinks: { platform: string; url: string }[];
   facePhotoUrl?: string;
   idDocumentName?: string;
-  accountType?: 'User' | 'Tenant';
+  accountType?: 'User' | 'TenantOwner' | 'MainAdmin';
   isTenantApproved?: boolean;
 }
 
 export interface Seeker {
   id: string;
+  tenantId?: string;
   name: string;
   trade: string;
   rate: string;

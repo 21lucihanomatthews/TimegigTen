@@ -4,12 +4,14 @@ import { Mail, Lock, ChevronRight, AlertCircle, Eye, EyeOff } from 'lucide-react
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { useTenant } from '../TenantContext';
 
 interface AuthViewProps {
   onLoginSuccess: () => void;
 }
 
 export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
+  const { currentTenant, isPlatformMode } = useTenant();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,6 +50,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
           try {
             await setDoc(doc(db, userDocPath), {
               uid: user.uid,
+              tenantId: currentTenant?.id || null, // Link to current tenant
               email: user.email,
               firstName: 'New',
               surname: 'User',
@@ -87,6 +90,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
       if (!userDoc.exists()) {
         await setDoc(doc(db, userDocPath), {
           uid: user.uid,
+          tenantId: currentTenant?.id || null,
           email: user.email,
           firstName: user.displayName?.split(' ')[0] || 'New',
           surname: user.displayName?.split(' ').slice(1).join(' ') || 'User',
@@ -212,7 +216,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="flex w-full justify-center items-center gap-2 rounded-xl bg-indigo-600 py-3 px-4 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex w-full justify-center items-center gap-2 rounded-xl bg-brand py-3 px-4 text-sm font-bold text-white shadow-sm hover:bg-brand/90 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   'Please wait...'
@@ -273,7 +277,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLoginSuccess }) => {
                 setIsLogin(!isLogin);
                 setError('');
               }}
-              className="font-bold text-indigo-600 hover:text-indigo-500 transition-colors"
+              className="font-bold text-brand hover:text-brand/80 transition-colors"
             >
               {isLogin ? 'Sign up' : 'Sign in'}
             </button>

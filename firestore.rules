@@ -15,6 +15,28 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isMainAdmin() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountType == 'MainAdmin';
+    }
+
+    function isTenantOwner(tenantId) {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/tenants/$(tenantId)) &&
+        get(/databases/$(database)/documents/tenants/$(tenantId)).data.ownerUid == request.auth.uid;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function belongsToTenant(tenantId) {
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().tenantId == tenantId) || isMainAdmin()
+      );
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -30,69 +52,96 @@ service cloud.firestore {
     // --- Entity Validations ---
 
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'firstName', 'surname', 'accountType'])
-        && data.uid == request.auth.uid
-        && data.email is string && data.email.size() <= 100
-        && data.firstName is string && data.firstName.size() <= 50
-        && data.surname is string && data.surname.size() <= 50
-        && data.accountType in ['User', 'Tenant'];
+      return data.firstName is string && data.firstName.size() <= 50
+        && data.surname is string && data.surname.size() <= 50;
     }
 
     function isValidGig(data) {
-      return data.keys().hasAll(['title', 'location', 'category', 'createdBy'])
-        && data.createdBy == request.auth.uid
+      return data.keys().hasAll(['title', 'location', 'category'])
         && data.title is string && data.title.size() <= 100
         && data.category in ['Live Music', 'Tech & Dev', 'Design', 'Production', 'Events'];
     }
 
-    function isValidSeeker(data) {
-      return data.keys().hasAll(['name', 'trade', 'uid'])
-        && data.uid == request.auth.uid
-        && data.name is string && data.name.size() <= 100;
+    function isValidTenant(data) {
+      return data.keys().hasAll(['name', 'slug', 'subdomain', 'status'])
+        && data.slug is string && data.slug.size() >= 3
+        && data.subdomain == data.slug + '.timegig.com'
+        && data.status in ['active', 'expired', 'suspended'];
     }
 
-    function isValidTenantSettings(data, tenantId) {
-      return data.keys().hasAll(['tenantId'])
-        && data.tenantId == request.auth.uid
-        && tenantId == request.auth.uid;
+    function isValidTenantSettings(data, userId) {
+      return data.tenantId is string && (data.tenantId == userId || isMainAdmin())
+        && (!('appName' in data) || (data.appName is string && data.appName.size() <= 100))
+        && (!('slug' in data) || (data.slug is string && data.slug.size() <= 100))
+        && (!('subscriptionFee' in data) || (data.subscriptionFee is string && data.subscriptionFee.size() <= 50))
+        && (!('appLogo' in data) || data.appLogo == null || (data.appLogo is string && data.appLogo.size() <= 1000000));
     }
 
     // --- Collections ---
 
+    match /_connection_test_/{id} {
+      allow read: if true;
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if true; // Public for branding resolution
+      allow create: if isMainAdmin() && isValidTenant(incoming());
+      allow update: if isMainAdmin();
+      allow update: if isTenantOwner(tenantId) && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'logoUrl', 'primaryColor', 'secondaryColor', 'updatedAt']);
+      allow delete: if isMainAdmin();
+    }
+
     match /users/{userId} {
-      allow get: if isSignedIn(); // Allow reading profiles for interactions
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidUser(incoming()) && userId == request.auth.uid;
-      allow update: if isOwner(userId) && isValidUser(incoming())
-        && incoming().diff(existing()).affectedKeys().hasOnly([
-          'firstName', 'middleName', 'surname', 'dob', 'address', 'city', 'province', 
-          'contactNumber', 'socialLinks', 'facePhotoUrl', 'idDocumentName', 'accountType', 'isTenantApproved', 'updatedAt'
-        ]);
+      allow get: if isSignedIn();
+      allow list: if isMainAdmin();
+      allow create: if isSignedIn() && userId == request.auth.uid && (
+        !incoming().keys().contains('tenantId') || 
+        incoming().tenantId == null || 
+        exists(/databases/$(database)/documents/tenants/$(incoming().tenantId))
+      );
+      allow update: if isOwner(userId) && 
+        (!incoming().diff(existing()).affectedKeys().hasAny(['accountType', 'tenantId']) || 
+         (incoming().accountType == existing().accountType && incoming().tenantId == existing().tenantId) ||
+         isMainAdmin());
+      allow update: if isMainAdmin();
+    }
+
+    match /tenantSettings/{userId} {
+      allow get: if isOwner(userId) || isMainAdmin();
+      allow list: if isMainAdmin();
+      allow create, update: if (isOwner(userId) || isMainAdmin()) && isValidTenantSettings(incoming(), userId);
+      allow delete: if isOwner(userId) || isMainAdmin();
     }
 
     match /gigs/{gigId} {
-      allow read: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidGig(incoming());
-      allow update: if isSignedIn() && (
-        // Creator update
-        (existing().createdBy == request.auth.uid && isValidGig(incoming())) ||
-        // Interaction update (apply/save) - ideally subcollection, but if in main doc:
-        (incoming().diff(existing()).affectedKeys().hasOnly(['applied', 'saved']))
+      allow read: if isSignedIn() && (
+        !existing().keys().contains('tenantId') || 
+        belongsToTenant(existing().tenantId)
       );
-      allow delete: if isSignedIn() && existing().createdBy == request.auth.uid;
+      allow create: if isSignedIn() && (
+        !incoming().keys().contains('tenantId') || 
+        belongsToTenant(incoming().tenantId)
+      );
+      allow update: if isSignedIn() && (
+        isOwner(existing().createdBy) || 
+        isMainAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['applied', 'saved'])
+      );
+      allow delete: if isMainAdmin() || isOwner(existing().createdBy);
     }
 
     match /seekers/{seekerId} {
-      allow read: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidSeeker(incoming());
-      allow update: if isOwner(existing().uid) && isValidSeeker(incoming());
-    }
-
-    match /tenantSettings/{tenantId} {
-      allow read: if isSignedIn();
-      allow create, update: if isOwner(tenantId) && isValidTenantSettings(incoming(), tenantId);
+      allow read: if isSignedIn() && (
+        !existing().keys().contains('tenantId') || 
+        belongsToTenant(existing().tenantId)
+      );
+      allow create: if isSignedIn() && (
+        !incoming().keys().contains('tenantId') || 
+        belongsToTenant(incoming().tenantId)
+      );
+      allow update: if isSignedIn() && (isOwner(existing().uid) || isMainAdmin());
+      allow delete: if isMainAdmin();
     }
   }
 }

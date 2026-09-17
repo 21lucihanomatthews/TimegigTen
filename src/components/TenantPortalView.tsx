@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CheckCircle2, MessageCircle, Facebook, Send } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { PLATFORM_CONFIG } from '../config';
 
 interface TenantPortalViewProps {
   onClose: () => void;
@@ -20,9 +21,10 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
   const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    const currentUid = auth.currentUser?.uid || profile.uid;
+    if (!currentUid) return;
 
-    const settingsDocPath = `tenantSettings/${auth.currentUser.uid}`;
+    const settingsDocPath = `tenantSettings/${currentUid}`;
     const unsubscribe = onSnapshot(doc(db, settingsDocPath), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
@@ -43,14 +45,35 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile.uid]);
 
-  const customDomain = `https://${appName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'app'}.tg.com`;
+  const slug = appName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'app';
+  const tenantUrl = `https://${slug}.${PLATFORM_CONFIG.mainDomain}`;
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(customDomain);
+    navigator.clipboard.writeText(tenantUrl);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleSocialShare = (platform: 'whatsapp' | 'facebook' | 'twitter') => {
+    const text = `Join my app ${appName} on TimeGiG! Check out our professional opportunities: `;
+    const encodedText = encodeURIComponent(text);
+    const encodedUrl = encodeURIComponent(tenantUrl);
+
+    let shareUrl = '';
+    switch (platform) {
+      case 'whatsapp':
+        shareUrl = `https://wa.me/?text=${encodedText}${encodedUrl}`;
+        break;
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+        break;
+    }
+    window.open(shareUrl, '_blank');
   };
 
   // Mock Active Verified Users
@@ -72,14 +95,16 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
   };
 
   const handleSaveBranding = async () => {
-    if (!auth.currentUser) return;
+    const targetUid = auth.currentUser?.uid || profile.uid;
+    if (!targetUid) return;
     setIsSaving(true);
     
-    const settingsDocPath = `tenantSettings/${auth.currentUser.uid}`;
+    const settingsDocPath = `tenantSettings/${targetUid}`;
     try {
       await setDoc(doc(db, settingsDocPath), {
-        tenantId: auth.currentUser.uid,
+        tenantId: targetUid,
         appName,
+        slug: appName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'app',
         appLogo,
         subscriptionFee,
         updatedAt: serverTimestamp()
@@ -179,7 +204,7 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-900 mb-2">Welcome to your Portal!</h3>
                 <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                  Your tenant subscription of R299,99/month is active. Use this dashboard to manage your own application, track user earnings, set your subscription fees, and customize your app's branding.
+                  Your tenant subscription of {PLATFORM_CONFIG.currency}{PLATFORM_CONFIG.subscriptionPrice.toLocaleString()}/month is active. Use this dashboard to manage your own application, track user earnings, set your subscription fees, and customize your app's branding.
                 </p>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -188,9 +213,15 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
                     Your App Link
                   </h4>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 truncate overflow-hidden">
-                      {customDomain}
-                    </div>
+                    <a 
+                      href={tenantUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-indigo-600 truncate overflow-hidden hover:bg-slate-50 transition-colors cursor-pointer"
+                      title="Click to open your branded app"
+                    >
+                      {tenantUrl}
+                    </a>
                     <button 
                       onClick={handleCopyLink}
                       className="p-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg transition-colors flex items-center justify-center min-w-[36px]"
@@ -201,6 +232,30 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
                   <p className="text-[10px] text-slate-500 mt-2">
                     Share this link to direct users to your branded experience.
                   </p>
+
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Share via Socials</p>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleSocialShare('whatsapp')}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-[11px] font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                      </button>
+                      <button 
+                        onClick={() => handleSocialShare('twitter')}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-slate-900 text-white rounded-xl text-[11px] font-bold hover:bg-black transition-colors"
+                      >
+                        <Send className="w-3.5 h-3.5" /> X / Twitter
+                      </button>
+                      <button 
+                        onClick={() => handleSocialShare('facebook')}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-[11px] font-bold border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                      >
+                        <Facebook className="w-3.5 h-3.5" /> Facebook
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

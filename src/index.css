@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+@theme {
+  --color-brand: var(--primary-color);
+}
+
+:root {
+  --primary-color: #4f46e5;
+}
+
 /* Fix Leaflet marker z-index in Tailwind */
 .leaflet-container {
   width: 100%;
