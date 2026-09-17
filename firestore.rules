@@ -74,6 +74,7 @@ service cloud.firestore {
         && (!('appName' in data) || (data.appName is string && data.appName.size() <= 100))
         && (!('slug' in data) || (data.slug is string && data.slug.size() <= 100))
         && (!('subscriptionFee' in data) || (data.subscriptionFee is string && data.subscriptionFee.size() <= 50))
+        && (!('displayLogo5s' in data) || data.displayLogo5s is bool)
         && (!('appLogo' in data) || data.appLogo == null || (data.appLogo is string && data.appLogo.size() <= 1000000));
     }
 
@@ -88,7 +89,7 @@ service cloud.firestore {
       allow create: if isMainAdmin() && isValidTenant(incoming());
       allow update: if isMainAdmin();
       allow update: if isTenantOwner(tenantId) && 
-        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'logoUrl', 'primaryColor', 'secondaryColor', 'updatedAt']);
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'logoUrl', 'primaryColor', 'secondaryColor', 'displayLogo5s', 'updatedAt']);
       allow delete: if isMainAdmin();
     }
 

@@ -15,8 +15,19 @@ export interface Tenant {
   subscriptionEndDate?: any;
   subscriptionPrice: number;
   currency: string;
+  displayLogo5s?: boolean; // Whether tenant wants uploaded logo to display for 5 seconds on launch
   createdAt: any;
   updatedAt: any;
+}
+
+export interface TenantSettings {
+  tenantId: string;
+  appName?: string;
+  slug?: string;
+  appLogo?: string;
+  displayLogo5s?: boolean;
+  subscriptionFee?: string;
+  updatedAt?: any;
 }
 
 export interface Gig {
@@ -36,6 +47,7 @@ export interface Gig {
   lat: number;
   lng: number;
   avatar: string;
+  createdBy?: string;
 }
 
 export type NavTab = 'gigs' | 'seekers' | 'profile' | 'settings' | 'admin' | 'tenant-admin';
@@ -69,4 +81,7 @@ export interface Seeker {
   avatar: string;
   skills: string[];
   hired: boolean;
+  uid?: string;
+  lat?: number;
+  lng?: number;
 }

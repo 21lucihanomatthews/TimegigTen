@@ -73,6 +73,8 @@
         "bio": { "type": "string", "maxLength": 500 },
         "avatar": { "type": "string" },
         "skills": { "type": "array", "items": { "type": "string" } },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
         "uid": { "type": "string" }
       },
       "required": ["name", "trade", "uid"]
@@ -97,6 +99,7 @@
         "subscriptionEndDate": { "type": "string", "format": "date-time" },
         "subscriptionPrice": { "type": "number" },
         "currency": { "type": "string" },
+        "displayLogo5s": { "type": "boolean", "description": "Whether the tenant wants the uploaded logo to display for 5 seconds on launch" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -111,6 +114,7 @@
         "appName": { "type": "string", "maxLength": 100 },
         "slug": { "type": "string", "maxLength": 50 },
         "appLogo": { "type": "string" },
+        "displayLogo5s": { "type": "boolean", "description": "Whether the tenant wants the uploaded logo to display for 5 seconds on launch" },
         "subscriptionFee": { "type": "string", "maxLength": 50 },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

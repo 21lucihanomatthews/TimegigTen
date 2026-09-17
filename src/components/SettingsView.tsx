@@ -9,9 +9,13 @@ import { PLATFORM_CONFIG } from '../config';
 
 interface SettingsViewProps {
   profile: UserProfile;
+  onViewFullScreenLogo?: (url?: string) => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ profile }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ 
+  profile, 
+  onViewFullScreenLogo
+}) => {
   const [activeModal, setActiveModal] = useState<'tenant' | 'about' | 'help' | 'logout' | null>(null);
   const [showTenantPortal, setShowTenantPortal] = useState(false);
   const [popFile, setPopFile] = useState<File | null>(null);
@@ -343,7 +347,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ profile }) => {
       )}
 
       {showTenantPortal && (
-        <TenantPortalView onClose={() => setShowTenantPortal(false)} profile={profile} />
+        <TenantPortalView 
+          onClose={() => setShowTenantPortal(false)} 
+          profile={profile} 
+          onViewFullScreenLogo={onViewFullScreenLogo}
+        />
       )}
     </div>
   );

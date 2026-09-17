@@ -126,7 +126,9 @@ export const INITIAL_SEEKERS: Seeker[] = [
     bio: 'Professional FOH & monitor engineer with 8+ years experience mixing live bands, jazz festivals, and arena tours across SA.',
     avatar: 'SK',
     skills: ['Midas Pro', 'DiGiCo SD', 'Acoustic Tuning', 'Dante Certified'],
-    hired: false
+    hired: false,
+    lat: -26.2041,
+    lng: 28.0473
   },
   {
     id: 'seek-2',
@@ -137,7 +139,9 @@ export const INITIAL_SEEKERS: Seeker[] = [
     bio: 'Full-stack software engineer specializing in high-performance web applications, Tailwind CSS, and interactive design systems.',
     avatar: 'CM',
     skills: ['React', 'TypeScript', 'Tailwind', 'Next.js', 'Figma'],
-    hired: false
+    hired: false,
+    lat: -33.9249,
+    lng: 18.4241
   },
   {
     id: 'seek-3',
@@ -148,7 +152,9 @@ export const INITIAL_SEEKERS: Seeker[] = [
     bio: 'Charismatic corporate and festival MC fluent in English, isiZulu, and Sesotho with extensive stage presence.',
     avatar: 'TM',
     skills: ['Public Speaking', 'Bilingual', 'Panel Moderation', 'Live Hosting'],
-    hired: false
+    hired: false,
+    lat: -26.1076,
+    lng: 28.0567
   },
   {
     id: 'seek-4',
@@ -159,7 +165,9 @@ export const INITIAL_SEEKERS: Seeker[] = [
     bio: 'Creative director crafting premium visual identities and sustainable packaging for African lifestyle and luxury brands.',
     avatar: 'JN',
     skills: ['Adobe Illustrator', 'Brand Strategy', 'Typography', 'Packaging Design'],
-    hired: false
+    hired: false,
+    lat: -29.8587,
+    lng: 31.0218
   },
   {
     id: 'seek-5',
@@ -170,6 +178,8 @@ export const INITIAL_SEEKERS: Seeker[] = [
     bio: 'Versatile session guitarist skilled in jazz, afro-soul, indie rock, and blues. Available for studio recording or live sets.',
     avatar: 'LO',
     skills: ['Electric Guitar', 'Logic Pro', 'Session Recording', 'Improvisation'],
-    hired: false
+    hired: false,
+    lat: -33.9321,
+    lng: 18.8602
   }
 ];

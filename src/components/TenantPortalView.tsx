@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
-import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CheckCircle2, MessageCircle, Facebook, Send } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, Upload, X, DollarSign, Image as ImageIcon, Copy, Check, Share2, CheckCircle2, MessageCircle, Facebook, Send, Maximize2, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -9,14 +9,19 @@ import { PLATFORM_CONFIG } from '../config';
 interface TenantPortalViewProps {
   onClose: () => void;
   profile: UserProfile;
+  onViewFullScreenLogo?: (url?: string) => void;
 }
 
-export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, profile }) => {
+export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, profile, onViewFullScreenLogo }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'pop' | 'settings'>('overview');
   const [subscriptionFee, setSubscriptionFee] = useState('29.99');
   
   const [appName, setAppName] = useState('TimeGiG');
   const [appLogo, setAppLogo] = useState<string | null>(null);
+  const [displayLogo5s, setDisplayLogo5s] = useState<boolean>(() => {
+    const local = localStorage.getItem('tenant_display_logo_5s');
+    return local !== null ? local === 'true' : true;
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -35,6 +40,10 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
         if (data.appLogo) {
           setAppLogo(data.appLogo);
           localStorage.setItem('tenant_app_logo', data.appLogo);
+        }
+        if (data.displayLogo5s !== undefined) {
+          setDisplayLogo5s(data.displayLogo5s);
+          localStorage.setItem('tenant_display_logo_5s', String(data.displayLogo5s));
         }
         if (data.subscriptionFee) {
           setSubscriptionFee(data.subscriptionFee);
@@ -88,7 +97,12 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAppLogo(e.target?.result as string);
+        const result = e.target?.result as string;
+        setAppLogo(result);
+        setDisplayLogo5s(true);
+        localStorage.setItem('tenant_app_logo', result);
+        localStorage.setItem('tenant_display_logo_5s', 'true');
+        onViewFullScreenLogo?.(result);
       };
       reader.readAsDataURL(file);
     }
@@ -106,6 +120,7 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
         appName,
         slug: appName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'app',
         appLogo,
+        displayLogo5s,
         subscriptionFee,
         updatedAt: serverTimestamp()
       });
@@ -116,6 +131,7 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
       } else {
         localStorage.removeItem('tenant_app_logo');
       }
+      localStorage.setItem('tenant_display_logo_5s', String(displayLogo5s));
 
       // Force reload to show splash screen with new branding
       setTimeout(() => {
@@ -371,6 +387,59 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
                       onChange={handleLogoUpload}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
+                  </div>
+                </div>
+
+                {/* 5-Second Splash Logo Display Setting */}
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                        <h4 className="text-xs font-bold text-slate-900">5-Second Splash Logo Display</h4>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                          displayLogo5s ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {displayLogo5s ? 'Enabled (5s)' : 'Disabled'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">
+                        Decide whether your uploaded logo displays full-screen for 5 seconds when users launch your app.
+                      </p>
+                    </div>
+
+                    {/* Toggle Switch */}
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5" title="Decide whether to display 5-second logo screen">
+                      <input 
+                        type="checkbox" 
+                        checked={displayLogo5s}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setDisplayLogo5s(checked);
+                          localStorage.setItem('tenant_display_logo_5s', String(checked));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+
+                  {/* Preview Button */}
+                  <div className="pt-2 border-t border-indigo-100 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {displayLogo5s ? 'Logo displays for 5s on launch' : 'Fast launch (no 5s logo screen)'}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!appLogo}
+                      onClick={() => {
+                        if (appLogo) onViewFullScreenLogo?.(appLogo);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:pointer-events-none shadow-xs"
+                      title="Preview uploaded logo for 5 seconds"
+                    >
+                      <Maximize2 className="w-3 h-3" /> Preview 5s
+                    </button>
                   </div>
                 </div>
 

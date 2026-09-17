@@ -1,19 +1,30 @@
 import React, { useState } from 'react';
-import { Search, MapPin, DollarSign, CheckCircle2, UserPlus, Sparkles, X, User } from 'lucide-react';
-import { Seeker } from '../types';
+import { Search, MapPin, DollarSign, CheckCircle2, UserPlus, Sparkles, X, User, Plus } from 'lucide-react';
+import { Seeker, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { CreateSeekerModal } from './CreateSeekerModal';
 
 interface SeekersViewProps {
   seekers: Seeker[];
   onHireSeeker: (id: string) => void;
   onOpenProfile: () => void;
   userProfilePhoto?: string;
+  userProfile?: UserProfile;
+  onCreateSeeker?: (seeker: Seeker) => Promise<void> | void;
 }
 
-export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker, onOpenProfile, userProfilePhoto }) => {
+export const SeekersView: React.FC<SeekersViewProps> = ({ 
+  seekers, 
+  onHireSeeker, 
+  onOpenProfile, 
+  userProfilePhoto,
+  userProfile,
+  onCreateSeeker
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSeeker, setSelectedSeeker] = useState<Seeker | null>(null);
   const [hireSuccessId, setHireSuccessId] = useState<string | null>(null);
+  const [showCreateSeekerModal, setShowCreateSeekerModal] = useState(false);
 
   const filteredSeekers = seekers.filter(seeker =>
     seeker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,9 +52,22 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
               Available Seekers
             </h1>
           </div>
-          <span className="text-[11px] font-semibold px-2.5 py-0.5 bg-white border border-slate-200 rounded-full text-slate-700 shadow-xs">
-            {filteredSeekers.length} Ready
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold px-2.5 py-1 bg-white border border-slate-200 rounded-full text-slate-700 shadow-xs">
+              {filteredSeekers.length} Ready
+            </span>
+            {/* Create Seeker Feature Icon Button */}
+            <button
+              id="open-create-seeker-modal-btn"
+              onClick={() => setShowCreateSeekerModal(true)}
+              className="bg-slate-900 hover:bg-black active:scale-95 text-white px-3 py-1.5 rounded-xl shadow-xs text-xs font-bold flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
+              title="Create & List Seeker Profile"
+              aria-label="Create Seeker"
+            >
+              <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">Create Seeker</span>
+            </button>
+          </div>
         </div>
 
         {/* Search Bar - Always Visible */}
@@ -155,8 +179,22 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
         })}
 
         {filteredSeekers.length === 0 && (
-          <div className="text-center py-8 bg-white rounded-2xl border border-slate-200">
-            <p className="text-xs font-medium text-slate-500">No seekers found matching "{searchQuery}"</p>
+          <div className="text-center py-10 px-4 bg-white rounded-2xl border border-slate-200 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+              <User className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800">No seekers found matching "{searchQuery}"</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Be the first to create and list a seeker profile in this category</p>
+            </div>
+            <button
+              id="empty-create-seeker-btn"
+              onClick={() => setShowCreateSeekerModal(true)}
+              className="px-4 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Create Seeker Profile</span>
+            </button>
           </div>
         )}
       </div>
@@ -255,6 +293,19 @@ export const SeekersView: React.FC<SeekersViewProps> = ({ seekers, onHireSeeker,
           <CheckCircle2 className="w-3.5 h-3.5" /> Seeker hired successfully!
         </div>
       )}
+
+      {/* Create Seeker Modal */}
+      <CreateSeekerModal
+        isOpen={showCreateSeekerModal}
+        onClose={() => setShowCreateSeekerModal(false)}
+        onSubmit={async (newSeeker) => {
+          if (onCreateSeeker) {
+            await onCreateSeeker(newSeeker);
+          }
+          setSelectedSeeker(newSeeker);
+        }}
+        userProfile={userProfile}
+      />
     </div>
   );
 };

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { User, Camera, FileText, Plus, Trash2, CheckCircle2, Save } from 'lucide-react';
+import { User, Camera, FileText, Plus, Trash2, CheckCircle2, Save, Maximize2 } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface ProfileViewProps {
   profile: UserProfile;
   onUpdateProfile: (updated: UserProfile) => void;
+  onViewFullScreenLogo?: (photoUrl?: string) => void;
 }
 
 const PROVINCES = [
@@ -19,7 +20,7 @@ const PROVINCES = [
   'Northern Cape'
 ];
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfile }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfile, onViewFullScreenLogo }) => {
   const [formData, setFormData] = useState<UserProfile>(profile);
   const [newPlatform, setNewPlatform] = useState('LinkedIn');
   const [newUrl, setNewUrl] = useState('');
@@ -50,7 +51,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, facePhotoUrl: reader.result as string }));
+        const photoUrl = reader.result as string;
+        setFormData(prev => ({ ...prev, facePhotoUrl: photoUrl }));
+        onViewFullScreenLogo?.(photoUrl);
       };
       reader.readAsDataURL(file);
     }
@@ -75,7 +78,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
 
   return (
     <div className="min-h-[calc(100vh-4.5rem)] bg-transparent text-slate-900 pb-28 pt-4 px-3 max-w-lg mx-auto overflow-y-auto">
-          <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
             <span>Profile Settings</span>
@@ -97,11 +100,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
           <div className="flex items-center gap-3.5">
             {/* Face Photo Preview / Upload */}
             <div className="relative group shrink-0">
-              <div className="w-16 h-16 rounded-xl bg-transparent border-2 border-slate-200 overflow-hidden flex items-center justify-center shadow-xs">
+              <div 
+                onClick={() => {
+                  if (formData.facePhotoUrl) {
+                    onViewFullScreenLogo?.(formData.facePhotoUrl);
+                  }
+                }}
+                className={`w-16 h-16 rounded-xl bg-transparent border-2 border-slate-200 overflow-hidden flex items-center justify-center shadow-xs ${
+                  formData.facePhotoUrl ? 'cursor-pointer hover:border-brand hover:scale-105 transition-all' : ''
+                }`}
+                title={formData.facePhotoUrl ? "Click to display logo full screen for 5 seconds" : "Face photo"}
+              >
                 {formData.facePhotoUrl ? (
                   <img src={formData.facePhotoUrl} alt="Face photo" className={`w-full h-full object-cover ${isLocked ? 'opacity-80' : ''}`} />
                 ) : (
                   <User className="w-7 h-7 text-slate-400" />
+                )}
+                {formData.facePhotoUrl && (
+                  <span className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                    <Maximize2 className="w-4 h-4 drop-shadow-md" />
+                  </span>
                 )}
               </div>
               {profile.isTenantApproved && (
@@ -110,7 +128,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
                 </div>
               )}
               {!isLocked && (
-                <label className="absolute -bottom-1 -right-1 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg cursor-pointer shadow-xs transition-transform hover:scale-105" title="Upload face only picture">
+                <label className="absolute -bottom-1 -right-1 bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg cursor-pointer shadow-xs transition-transform hover:scale-105 z-20" title="Upload face only picture">
                   <Camera className="w-3 h-3" />
                   <input type="file" accept="image/*" onChange={handleFacePhotoUpload} className="hidden" />
                 </label>
@@ -123,9 +141,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
                 {isLocked ? 'Profile picture is verified and locked.' : 'Clear front-facing face photo for venue badge and check-in.'}
               </p>
               {formData.facePhotoUrl && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold mt-1">
-                  <CheckCircle2 className="w-3 h-3" /> Uploaded
-                </span>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
+                    <CheckCircle2 className="w-3 h-3" /> Uploaded
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onViewFullScreenLogo?.(formData.facePhotoUrl)}
+                    className="inline-flex items-center gap-1 text-[10px] text-brand hover:underline font-bold bg-brand/10 hover:bg-brand/20 px-2 py-0.5 rounded-md transition-all cursor-pointer shadow-2xs"
+                    title="Display user logo full screen for 5 seconds"
+                  >
+                    <Maximize2 className="w-2.5 h-2.5" /> View Full Screen (5s)
+                  </button>
+                </div>
               )}
             </div>
           </div>

@@ -13,22 +13,52 @@ import { MainAdminDashboard } from './components/MainAdminDashboard';
 import { TenantOwnerDashboard } from './components/TenantOwnerDashboard';
 import { TenantLockedView } from './components/TenantLockedView';
 import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, Users, Settings, UserCircle, Star, AlertCircle, LogOut } from 'lucide-react';
+import { MapPin, Users, Settings, UserCircle, Star, AlertCircle, LogOut, Sparkles, Clock, Maximize2 } from 'lucide-react';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, getDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
+import { FullScreenLogoModal } from './components/FullScreenLogoModal';
 
 export default function App() {
   const { currentTenant, isLoadingTenant, tenantError, isPlatformMode } = useTenant();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-  const [showSplash, setShowSplash] = useState(true);
-  
-  // Use tenant branding if available
+  // Use tenant branding or user branding if available
   const appName = currentTenant?.name || localStorage.getItem('tenant_app_name') || 'TimeGiG';
   const appLogo = currentTenant?.logoUrl || localStorage.getItem('tenant_app_logo');
   const primaryColor = currentTenant?.primaryColor || '#4f46e5';
+
+  // Tenant's decision to display the logo for 5 seconds
+  const tenantWantsLogo5s = currentTenant?.displayLogo5s !== undefined
+    ? currentTenant.displayLogo5s
+    : (localStorage.getItem('tenant_display_logo_5s') !== null
+        ? localStorage.getItem('tenant_display_logo_5s') === 'true'
+        : true);
+
+  const [showSplash, setShowSplash] = useState(() => {
+    const storedChoice = localStorage.getItem('tenant_display_logo_5s');
+    return storedChoice !== 'false';
+  });
+  const [splashSecondsRemaining, setSplashSecondsRemaining] = useState(5);
+  const [splashProgress, setSplashProgress] = useState(0);
+
+  const [fullScreenLogo, setFullScreenLogo] = useState<{
+    isOpen: boolean;
+    logoUrl?: string | null;
+    name?: string;
+    subtitle?: string;
+    isVerified?: boolean;
+  }>({
+    isOpen: false
+  });
+
+  // Dynamically sync if tenant changes decision
+  useEffect(() => {
+    if (currentTenant && currentTenant.displayLogo5s === false) {
+      setShowSplash(false);
+    }
+  }, [currentTenant?.displayLogo5s]);
 
   useEffect(() => {
     // Inject dynamic theme color
@@ -39,13 +69,31 @@ export default function App() {
       setIsLoadingAuth(false);
     });
 
-    const timer = setTimeout(() => setShowSplash(false), 5000);
-    
+    if (!tenantWantsLogo5s) {
+      setShowSplash(false);
+      return () => unsubscribeAuth();
+    }
+
+    const startTime = Date.now();
+    const totalDurationMs = 5000;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(100, (elapsed / totalDurationMs) * 100);
+      setSplashProgress(pct);
+      const remaining = Math.max(0, Math.ceil((totalDurationMs - elapsed) / 1000));
+      setSplashSecondsRemaining(remaining);
+      if (elapsed >= totalDurationMs) {
+        clearInterval(interval);
+        setShowSplash(false);
+      }
+    }, 40);
+
     return () => {
       unsubscribeAuth();
-      clearTimeout(timer);
+      clearInterval(interval);
     };
-  }, [primaryColor]);
+  }, [primaryColor, tenantWantsLogo5s]);
 
   const [showWelcome, setShowWelcome] = useState(() => !localStorage.getItem('timegig_welcome_shown'));
   const [showTenantPopup, setShowTenantPopup] = useState(false);
@@ -90,6 +138,9 @@ export default function App() {
     const unsubscribeProfile = onSnapshot(doc(db, userDocPath), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
+        if (data.facePhotoUrl) {
+          localStorage.setItem('timegig_user_photo', data.facePhotoUrl);
+        }
         setProfile(prev => ({
           ...prev,
           ...data,
@@ -102,6 +153,64 @@ export default function App() {
 
     return () => unsubscribeProfile();
   }, [isAuthenticated]);
+
+  // Real-time synchronization of created gigs & seekers from Firestore
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const unsubscribeGigs = onSnapshot(collection(db, 'gigs'), (snapshot) => {
+      if (!snapshot.empty) {
+        const cloudGigs: Gig[] = snapshot.docs.map(d => ({
+          ...(d.data() as Gig),
+          id: d.id
+        }));
+
+        setGigs(prev => {
+          const cloudIds = new Set(cloudGigs.map(g => g.id));
+          const localOnly = prev.filter(g => !cloudIds.has(g.id));
+          return [...cloudGigs, ...localOnly];
+        });
+      }
+    }, (err) => {
+      console.warn('Gigs Firestore listener note:', err);
+    });
+
+    const unsubscribeSeekers = onSnapshot(collection(db, 'seekers'), (snapshot) => {
+      if (!snapshot.empty) {
+        const cloudSeekers: Seeker[] = snapshot.docs.map(d => ({
+          ...(d.data() as Seeker),
+          id: d.id
+        }));
+
+        setSeekers(prev => {
+          const cloudIds = new Set(cloudSeekers.map(s => s.id));
+          const localOnly = prev.filter(s => !cloudIds.has(s.id));
+          return [...cloudSeekers, ...localOnly];
+        });
+      }
+    }, (err) => {
+      console.warn('Seekers Firestore listener note:', err);
+    });
+
+    return () => {
+      unsubscribeGigs();
+      unsubscribeSeekers();
+    };
+  }, [isAuthenticated]);
+
+  const handleOpenFullScreenLogo = (customUrl?: string, customName?: string, customSubtitle?: string) => {
+    const targetUrl = customUrl || appLogo || profile.facePhotoUrl || localStorage.getItem('timegig_user_photo');
+    const isTenantLogo = Boolean(targetUrl && (targetUrl === appLogo || targetUrl === currentTenant?.logoUrl || targetUrl === localStorage.getItem('tenant_app_logo')));
+    const fullName = customName || (isTenantLogo ? appName : ([profile.firstName, profile.surname].filter(Boolean).join(' ') || appName));
+    const subtitle = customSubtitle || (isTenantLogo ? 'Uploaded Tenant Logo (5s Display)' : (profile.accountType === 'TenantOwner' ? 'Tenant Owner & Venue Partner' : 'Verified Identity & Profile Logo'));
+    setFullScreenLogo({
+      isOpen: true,
+      logoUrl: targetUrl,
+      name: fullName,
+      subtitle,
+      isVerified: profile.isTenantApproved || isTenantLogo
+    });
+  };
 
   useEffect(() => {
     if (currentTab !== 'settings') {
@@ -160,6 +269,44 @@ export default function App() {
     setSeekers(seekers.map(s => s.id === id ? { ...s, hired: true } : s));
   };
 
+  const handleCreateGig = async (newGig: Gig) => {
+    // 1. Immediately update UI state and local storage
+    setGigs(prev => [newGig, ...prev]);
+
+    // 2. Persist to Firestore cloud database
+    if (auth.currentUser) {
+      try {
+        const gigDocRef = doc(db, 'gigs', newGig.id);
+        await setDoc(gigDocRef, {
+          ...newGig,
+          createdBy: auth.currentUser.uid,
+          createdAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.warn('Could not save gig to Firestore cloud:', err);
+      }
+    }
+  };
+
+  const handleCreateSeeker = async (newSeeker: Seeker) => {
+    // 1. Immediately update UI state and local storage
+    setSeekers(prev => [newSeeker, ...prev]);
+
+    // 2. Persist to Firestore cloud database
+    if (auth.currentUser) {
+      try {
+        const seekerDocRef = doc(db, 'seekers', newSeeker.id);
+        await setDoc(seekerDocRef, {
+          ...newSeeker,
+          uid: auth.currentUser.uid,
+          createdAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.warn('Could not save seeker to Firestore cloud:', err);
+      }
+    }
+  };
+
   const finishWelcome = () => {
     setShowWelcome(false);
     localStorage.setItem('timegig_welcome_shown', 'true');
@@ -177,7 +324,18 @@ export default function App() {
     setShowTenantPopup(false);
   };
 
-  if (showSplash || isLoadingAuth || isLoadingTenant) {
+  if (!tenantWantsLogo5s || !showSplash) {
+    if (isLoadingAuth || isLoadingTenant) {
+      return (
+        <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center p-6 text-white select-none">
+          <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-xs text-slate-400 font-medium tracking-wide">Loading {appName}...</p>
+        </div>
+      );
+    }
+  } else if (showSplash || isLoadingAuth || isLoadingTenant) {
+    const activeLogo = appLogo || profile.facePhotoUrl || localStorage.getItem('timegig_user_photo');
+
     return (
       <AnimatePresence>
         {(showSplash || isLoadingAuth || isLoadingTenant) && (
@@ -185,30 +343,24 @@ export default function App() {
             key="splash"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="fixed inset-0 z-[9999] bg-slate-900 flex flex-col items-center justify-center"
+            transition={{ duration: 0.4 }}
+            onClick={() => setShowSplash(false)}
+            className="fixed inset-0 z-[99999] bg-black w-screen h-screen select-none overflow-hidden cursor-pointer"
           >
-          <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col items-center"
-          >
-            {appLogo ? (
-              <img src={appLogo} alt={appName} className="w-24 h-24 rounded-3xl object-cover shadow-2xl mb-6 border border-slate-700" />
+            {activeLogo ? (
+              <img 
+                src={activeLogo} 
+                alt="" 
+                className="w-full h-full object-cover" 
+              />
             ) : (
-              <div className="w-24 h-24 bg-white text-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-6 font-black text-4xl shadow-2xl">
-                {appName.substring(0, 2).toUpperCase()}
+              <div className="w-full h-full bg-black flex items-center justify-center">
+                <span className="text-8xl sm:text-9xl font-black text-white tracking-tight">
+                  {appName.substring(0, 2).toUpperCase()}
+                </span>
               </div>
             )}
-            <h1 className="text-3xl font-bold text-white tracking-tight">{appName}</h1>
-            <div className="mt-8 flex gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-            </div>
           </motion.div>
-        </motion.div>
         )}
       </AnimatePresence>
     );
@@ -240,7 +392,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500 selection:text-white pb-16 relative">
-      <TopHeader appName={appName} currentTab={currentTab} onSelectTab={handleSelectTab} onToggleSettings={handleToggleSettings} profilePhoto={profile.facePhotoUrl} />
+      <TopHeader 
+        appName={appName} 
+        currentTab={currentTab} 
+        onSelectTab={handleSelectTab} 
+        onToggleSettings={handleToggleSettings} 
+        profilePhoto={appLogo || profile.facePhotoUrl}
+        onViewLogo={() => handleOpenFullScreenLogo(appLogo || profile.facePhotoUrl)} 
+      />
 
       <main className="max-w-xl mx-auto">
         {currentTab === 'gigs' && (
@@ -248,6 +407,8 @@ export default function App() {
             gigs={currentTenant ? gigs.filter(g => g.tenantId === currentTenant.id) : gigs.filter(g => !g.tenantId)} 
             onToggleSave={handleToggleSave} 
             onApplyGig={handleApplyGig} 
+            userProfile={profile}
+            onCreateGig={handleCreateGig}
           />
         )}
         {currentTab === 'seekers' && (
@@ -256,19 +417,29 @@ export default function App() {
             onHireSeeker={handleHireSeeker}
             onOpenProfile={() => handleSelectTab('profile')}
             userProfilePhoto={profile.facePhotoUrl}
+            userProfile={profile}
+            onCreateSeeker={handleCreateSeeker}
           />
         )}
         {currentTab === 'profile' && (
-          <ProfileView profile={profile} onUpdateProfile={handleUpdateProfile} />
+          <ProfileView 
+            profile={profile} 
+            onUpdateProfile={handleUpdateProfile}
+            onViewFullScreenLogo={handleOpenFullScreenLogo}
+          />
         )}
         {currentTab === 'settings' && (
-          <SettingsView profile={profile} />
+          <SettingsView profile={profile} onViewFullScreenLogo={handleOpenFullScreenLogo} />
         )}
         {currentTab === 'admin' && profile.accountType === 'MainAdmin' && (
           <MainAdminDashboard />
         )}
         {currentTab === 'tenant-admin' && (profile.accountType === 'TenantOwner' || profile.accountType === 'MainAdmin') && currentTenant && (
-          <TenantOwnerDashboard tenant={currentTenant} profile={profile} />
+          <TenantOwnerDashboard 
+            tenant={currentTenant} 
+            profile={profile} 
+            onViewFullScreenLogo={handleOpenFullScreenLogo}
+          />
         )}
       </main>
 
@@ -372,6 +543,17 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Full Screen User Logo Display Modal (5 Seconds) */}
+      <FullScreenLogoModal
+        isOpen={fullScreenLogo.isOpen}
+        onClose={() => setFullScreenLogo(prev => ({ ...prev, isOpen: false }))}
+        logoUrl={fullScreenLogo.logoUrl}
+        name={fullScreenLogo.name}
+        subtitle={fullScreenLogo.subtitle}
+        isVerified={fullScreenLogo.isVerified}
+        durationSeconds={5}
+      />
     </div>
   );
 }
