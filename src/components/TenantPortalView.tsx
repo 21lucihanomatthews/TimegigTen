@@ -57,7 +57,10 @@ export const TenantPortalView: React.FC<TenantPortalViewProps> = ({ onClose, pro
   }, [profile.uid]);
 
   const slug = appName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'app';
-  const tenantUrl = `https://${slug}.${PLATFORM_CONFIG.mainDomain}`;
+  const isPreviewEnvironment = window.location.hostname.includes('run.app');
+  const tenantUrl = isPreviewEnvironment 
+    ? `${window.location.origin}?tenant=${slug}`
+    : `https://${slug}.${PLATFORM_CONFIG.mainDomain}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(tenantUrl);

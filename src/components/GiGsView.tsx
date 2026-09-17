@@ -15,6 +15,7 @@ interface GiGsViewProps {
   onApplyGig: (id: string) => void;
   userProfile?: UserProfile;
   onCreateGig?: (gig: Gig) => Promise<void> | void;
+  tenantId?: string;
 }
 
 interface UserLocation {
@@ -187,7 +188,7 @@ function getNearestLocationName(lat: number, lng: number): string {
   return `Near ${closestName}`;
 }
 
-export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyGig, userProfile, onCreateGig }) => {
+export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyGig, userProfile, onCreateGig, tenantId }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -1096,6 +1097,7 @@ export const GiGsView: React.FC<GiGsViewProps> = ({ gigs, onToggleSave, onApplyG
         }}
         userProfile={userProfile}
         defaultLocation={userLocation?.address}
+        tenantId={tenantId}
       />
     </div>
   );

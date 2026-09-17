@@ -11,6 +11,7 @@ interface SeekersViewProps {
   userProfilePhoto?: string;
   userProfile?: UserProfile;
   onCreateSeeker?: (seeker: Seeker) => Promise<void> | void;
+  tenantId?: string;
 }
 
 export const SeekersView: React.FC<SeekersViewProps> = ({ 
@@ -19,7 +20,8 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
   onOpenProfile, 
   userProfilePhoto,
   userProfile,
-  onCreateSeeker
+  onCreateSeeker,
+  tenantId
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSeeker, setSelectedSeeker] = useState<Seeker | null>(null);
@@ -305,6 +307,7 @@ export const SeekersView: React.FC<SeekersViewProps> = ({
           setSelectedSeeker(newSeeker);
         }}
         userProfile={userProfile}
+        tenantId={tenantId}
       />
     </div>
   );

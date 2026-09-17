@@ -171,7 +171,10 @@ export const MainAdminDashboard: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => {
-                    const url = `https://${tenant.slug}.${PLATFORM_CONFIG.mainDomain}`;
+                    const isPreviewEnvironment = window.location.hostname.includes('run.app');
+                    const url = isPreviewEnvironment 
+                      ? `${window.location.origin}?tenant=${tenant.slug}`
+                      : `https://${tenant.slug}.${PLATFORM_CONFIG.mainDomain}`;
                     navigator.clipboard.writeText(url);
                     alert('Link copied!');
                   }}

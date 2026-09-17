@@ -48,20 +48,15 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (path[0] === 't' && path[1]) {
           tenantSlug = path[1];
         } else {
-          // Support ?tenant=id (legacy)
-          const tenantIdParam = searchParams.get('tenant');
-          if (tenantIdParam) {
-            // If we have an ID directly, we handle it separately below
-            setIsLoadingTenant(true);
-            try {
-              const docSnap = await getDocs(query(collection(db, 'tenants'), where('id', '==', tenantIdParam))); // Adjust if needed
-              // Actually onSnapshot is better for legacy support if it was used
-            } catch (e) {}
+          // Support ?tenant=slug
+          const tenantSlugParam = searchParams.get('tenant');
+          if (tenantSlugParam) {
+            tenantSlug = tenantSlugParam;
           }
         }
       }
 
-      if (!tenantSlug && !searchParams.get('tenant')) {
+      if (!tenantSlug) {
         setIsPlatformMode(true);
         setIsLoadingTenant(false);
         return;
@@ -80,23 +75,6 @@ export const TenantProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setCurrentTenant({ id: tenantDoc.id, ...tenantDoc.data() } as Tenant);
           } else {
             setTenantError('Application not found');
-          }
-        } else {
-          const tenantIdParam = searchParams.get('tenant');
-          if (tenantIdParam) {
-            const unsubscribe = onSnapshot(doc(db, 'tenants', tenantIdParam), (docSnap) => {
-              if (docSnap.exists()) {
-                setCurrentTenant({ id: docSnap.id, ...docSnap.data() } as Tenant);
-              } else {
-                setTenantError('Application not found');
-              }
-              setIsLoadingTenant(false);
-            }, (err) => {
-              console.error(err);
-              setTenantError('Unable to load this application');
-              setIsLoadingTenant(false);
-            });
-            return () => unsubscribe();
           }
         }
       } catch (err) {

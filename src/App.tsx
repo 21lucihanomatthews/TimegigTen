@@ -389,6 +389,7 @@ export default function App() {
             onApplyGig={handleApplyGig} 
             userProfile={profile}
             onCreateGig={handleCreateGig}
+            tenantId={currentTenant?.id}
           />
         )}
         {currentTab === 'seekers' && (
@@ -399,6 +400,7 @@ export default function App() {
             userProfilePhoto={profile.facePhotoUrl}
             userProfile={profile}
             onCreateSeeker={handleCreateSeeker}
+            tenantId={currentTenant?.id}
           />
         )}
         {currentTab === 'profile' && (

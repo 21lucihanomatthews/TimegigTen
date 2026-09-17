@@ -311,7 +311,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ profile, onUpdateProfi
               <div key={idx} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-[11px]">
                 <div className="flex items-center gap-1.5 truncate">
                   <span className="font-semibold text-red-600">{link.platform}:</span>
-                  <span className="text-slate-700 truncate">{link.url}</span>
+                  <a href={link.url.startsWith('http') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer" className="text-slate-700 hover:text-red-600 hover:underline truncate">
+                    {link.url}
+                  </a>
                 </div>
                 <button
                   type="button"
