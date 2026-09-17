@@ -95,7 +95,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if isMainAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/tenants/$(getUserData().tenantId)) && get(/databases/$(database)/documents/tenants/$(getUserData().tenantId)).data.ownerUid == request.auth.uid);
+      allow list: if isMainAdmin() || (isSignedIn() && resource.data.tenantId == request.auth.uid);
       allow create: if isSignedIn() && userId == request.auth.uid && (
         !incoming().keys().contains('tenantId') || 
         incoming().tenantId == null || 
@@ -116,10 +116,7 @@ service cloud.firestore {
     }
 
     match /gigs/{gigId} {
-      allow read: if isSignedIn() && (
-        !existing().keys().contains('tenantId') || 
-        belongsToTenant(existing().tenantId)
-      );
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && (
         !incoming().keys().contains('tenantId') || 
         belongsToTenant(incoming().tenantId)
@@ -133,10 +130,7 @@ service cloud.firestore {
     }
 
     match /seekers/{seekerId} {
-      allow read: if isSignedIn() && (
-        !existing().keys().contains('tenantId') || 
-        belongsToTenant(existing().tenantId)
-      );
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && (
         !incoming().keys().contains('tenantId') || 
         belongsToTenant(incoming().tenantId)
